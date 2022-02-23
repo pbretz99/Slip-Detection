@@ -14,12 +14,16 @@ from Matrix_Utilities import poly_mats, trig_mats, trig_inits
 
 class Results:
      def __init__(self):
+          self.m = None
+          self.C = None
           self.forecast = []
           self.filter = []
           self.innovation = []
           self.obs_var = []
      
      def append(self, ret):
+          self.m = ret['m']
+          self.C = ret['C']
           self.forecast.append(ret['forecast'][0,0])
           self.filter.append(ret['filter'][0,0])
           self.innovation.append(ret['innovation'][0,0])
@@ -53,9 +57,10 @@ class ResultsDiscount(Results):
           return beta / (alpha - 1)
 
 # Filter a sample
-def filter_sample(Model, Data, init, final, set_init=True, discount_model=True):
+def filter_sample(Model, Data, init, final, set_init=True, discount_model=True, reset_to_zero=False):
      Temp_Model = Model.copy()
      if set_init: Temp_Model.m[0,0] = Data[init]
+     if reset_to_zero: Temp_Model.m[0,0] = 0
      if discount_model: results = ResultsDiscount()
      else: results = Results()
      for t in range(init, final):
@@ -110,6 +115,10 @@ class DLM:
 
           # Observation covariance
           self.V = self.V + M.V
+
+     def set_inits(self, results):
+          self.m = results.m
+          self.C = results.C
 
      def filter(self, z, return_results=False):
 
