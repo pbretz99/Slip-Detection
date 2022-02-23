@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import statsmodels.api as sm
 from statsmodels.graphics.tsaplots import plot_pacf, plot_acf
+from scipy.stats import invgamma
 
 # Local Code
 from DLM import filter_sample
@@ -80,3 +81,15 @@ def ROC_frame(ax):
      ax.plot([0, 1], [0, 1], c='gray', ls='--')
      ax.set_xlabel('False Positive Rate')
      ax.set_ylabel('True Positive Rate')
+
+######################
+# Plot Distributions #
+######################
+
+# Plot inverse gamma
+def plot_inv_gamma(ax, alpha, beta, scale=5, num=100, **kwargs):
+     RV = invgamma(a=alpha, scale=beta)
+     if alpha > 1: mean = beta / (alpha - 1)
+     else: mean = beta
+     x = np.linspace(0, scale * mean, num=num)
+     ax.plot(x, RV.pdf(x), **kwargs)

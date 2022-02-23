@@ -5,7 +5,7 @@ import numpy as np
 
 # Local Code
 from DLM import DLMPoly, DLMTrig, filter_sample
-from Plotting import diagnostic_plots, filter_plot, error_plot, ROC_frame
+from Plotting import diagnostic_plots, filter_plot, error_plot, ROC_frame, plot_inv_gamma
 from Times import get_times_from_labels, get_all_measures_from_times, clean_times, get_times_from_vel
 from Utilities import load_data
 
@@ -26,13 +26,22 @@ def set_up_local_discount_filter(init_val, omega, df, alpha, beta, J=2):
 # Plot Model results on sample
 def quick_plot(Model, Data, data_label, init, final):
 
-     point_est, innovation, obs_var = filter_sample(Model, Data, init, final)
-     err = innovation / np.sqrt(obs_var)
-
+     results = filter_sample(Model, Data, init, final)
+     
      fig, axs = plt.subplots(2, 1, figsize=(8, 8))
-     filter_plot(axs[0], point_est, Data, init, final, data_label)
-     error_plot(axs[1], err, init, final, data_label)
+     filter_plot(axs[0], results.point_estimate(), Data, init, final, data_label)
+     error_plot(axs[1], results.standardized_error(), init, final, data_label)
      fig.tight_layout()
+     plt.show()
+
+# Plot sigma estimate
+def plot_sigma_est(Model, Data, data_label, init, final):
+
+     results = filter_sample(Model, Data, init, final)
+
+     fig, ax = plt.subplots(figsize=(7,7))
+     ax.plot(range(init, final), results.var_point_estimate())
+     ax.set_ylim(bottom=0)
      plt.show()
 
 def run_Vel_sample():
@@ -41,15 +50,13 @@ def run_Vel_sample():
      Vel = load_data('xvelocity')
 
      # Create model
-     init, final = 9000, 10000
+     init, final = 9200, 10000
      Model = set_up_local_discount_filter(Vel[init], omega=0.2582, df=0.8, alpha=2, beta=0.0001**2, J=2)
      
      # Plot
      quick_plot(Model, Vel, 'X Wall Velocity', init, final)
-
-
+     plot_sigma_est(Model, Vel, 'X Wall Velocity', init, final)
 
 if __name__ == "__main__":
 
      run_Vel_sample()
-     
