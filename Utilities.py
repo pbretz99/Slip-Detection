@@ -14,6 +14,14 @@ def print_tracker(i, N, factor=0.1):
 def load_data(filename, data_path="C:/Users/Owner/Documents/Research/Slip Analysis/Data/Long_Run/"):
      return np.load(data_path + filename + '.npy')
 
+# Get times in a given range
+def get_times_in_range(init, final, Times):
+     ret = []
+     for t in Times:
+          if t >= init and t <= final:
+               ret.append(t)
+     return np.array(ret)
+
 # Ensure np shape arrays are all 2-d
 def check_shape(vec, column=True):
      ret = vec

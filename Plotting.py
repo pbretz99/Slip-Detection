@@ -11,6 +11,7 @@ from scipy.stats import invgamma
 
 # Local Code
 from DLM import filter_sample
+from Utilities import get_times_in_range
 
 #############
 # Plot Data #
@@ -32,6 +33,11 @@ def error_plot(ax, error, init, final, standardized=True):
      title = 'Filter Error'
      if standardized: title = title + ' (Standardized)'
      ax.set_title(title)
+
+# Function to add times to plot
+def add_times_to_plot(ax, init, final, Times, **kwargs):
+     for t in get_times_in_range(init, final, Times):
+          ax.axvline(x=t, **kwargs)
 
 ####################
 # Diagnostic Plots #
