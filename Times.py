@@ -10,6 +10,31 @@ def get_times_from_labels(labels):
                TimesLabels.append(i)
      return np.array(TimesLabels)
 
+# Using stick probabilities, find times of slip beginning and slip end
+def times_from_prob(stick_prob, slip_start_threshold=0.1, slip_end_threshold=0.9, init=0, min_dist=0):
+
+     slip_start_times = []
+     slip_end_times = []
+     last_slip_start_detected = init - min_dist - 1
+     last_slip_end_detected = init - min_dist - 1
+     current_regime = 'Stick'
+     for i in range(1, len(stick_prob)):
+          t = i + init
+          p = stick_prob[i]
+          p_prev = stick_prob[i-1]
+          if current_regime == 'Stick':
+               if p < slip_start_threshold and p_prev >= slip_start_threshold:
+                    if t > min_dist + last_slip_start_detected:
+                         slip_start_times.append(t)
+                         current_regime = 'Slip'
+                    last_slip_start_detected = t
+          elif current_regime == 'Slip':
+               if p > slip_end_threshold and p_prev <= slip_end_threshold:
+                    if t > min_dist + last_slip_end_detected:
+                         slip_end_times.append(t)
+                         current_regime = 'Stick'
+                    last_slip_end_detected = t
+     return np.array(slip_start_times), np.array(slip_end_times)
 
 # Using estimated change, find raw times of changepoints
 def get_times_from_vel(vel_est, init, threshold=0, burn_in=0):
