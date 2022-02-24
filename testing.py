@@ -8,7 +8,7 @@ from DLM import DLMPoly, DLMTrig, filter_sample
 from Likelihood import full_switching_likelihood
 from Plotting import diagnostic_plots, filter_plot, error_plot, ROC_frame, plot_inv_gamma
 from Times import get_times_from_labels, get_all_measures_from_times, clean_times, get_times_from_vel
-from Utilities import load_data
+from Utilities import load_data, print_tracker
 
 # Initialize discount filter with local level + periodic
 def set_up_local_discount_filter(init_val, omega, df, alpha, beta, J=2):
@@ -64,16 +64,17 @@ def switching_model_prob(Model1, Model2, Data, init, final, burn_in=0):
      P2 = L2 / (L1 + L2)
      return P1, P2
 
-def running_model_prob(Model1, Model2, Data, init, final, window_size=50, burn_in=0):
+def running_model_prob(Model1, Model2, Data, init, final, window_size=50, burn_in=0, verbose=False):
      
      Probs1, Probs2 = [], []
      for final_current in range(init, final):
-          print('Running ', final_current)
+          if verbose: print_tracker(final_current-init, final-init, factor=0.05)
           init_current = final_current - burn_in - window_size
           P1, P2 = switching_model_prob(Model1, Model2, Data, init_current, final_current, burn_in=burn_in)
           Probs1.append(P1)
           Probs2.append(P2)
      
+     if verbose: print('Complete!')
      return np.array(Probs1), np.array(Probs2)
 
 
@@ -109,10 +110,7 @@ def run_Vel_changepoint():
      Model_slip.alpha, Model_slip.beta = alpha_slip, beta_slip
      
      # Get switching likelihoods
-     P1, P2 = running_model_prob(Model_stick, Model_slip, Vel, init, final, burn_in=50)
-
-     # Run regular filter for point est
-     results = filter_sample(Model, Vel, init, final)
+     P1, P2 = running_model_prob(Model_stick, Model_slip, Vel, init, final, burn_in=50, verbose=True)
 
      # Plot
      fig, ax = plt.subplots(2, 1, figsize=(5, 5))
