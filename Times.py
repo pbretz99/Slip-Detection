@@ -37,7 +37,6 @@ def clean_times(times, data, data_max, dist_max, look_back=5):
      new_times = []
      for t in times[times > look_back]:
           add_time = True
-          #if labels_stick_slip[t] == 2: add_time = False
           ave_val = np.mean(data[(t-look_back):(t+1)])
           if ave_val >= data_max: add_time = False
           if new_times:

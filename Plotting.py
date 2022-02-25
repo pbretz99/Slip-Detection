@@ -34,6 +34,21 @@ def error_plot(ax, error, init, final, standardized=True):
      if standardized: title = title + ' (Standardized)'
      ax.set_title(title)
 
+# Plot sigma point estimate
+def sigma_plot(ax, sigma, init, final, log_diff=False, log_scale=False):
+     if log_diff:
+          ax.plot(range(init+1, final), np.diff(np.log(sigma)), c='steelblue')
+          ax.set_ylabel('Est. log$\sigma^2$')
+          ax.set_title('Point Estimate of log $\sigma^2$')
+     elif log_scale:
+          ax.plot(range(init, final), np.log(sigma), c='steelblue')
+          ax.set_ylabel('Est. log$\sigma^2$')
+          ax.set_title('Point Estimate of log $\sigma^2$')
+     else:
+          ax.plot(range(init, final), sigma, c='steelblue')
+          ax.set_ylabel('Est. $\sigma^2$')
+          ax.set_title('Point Estimate of $\sigma^2$')
+
 # Function to add times to plot
 def add_times_to_plot(ax, init, final, Times, **kwargs):
      for t in get_times_in_range(init, final, Times):

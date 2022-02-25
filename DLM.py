@@ -57,14 +57,15 @@ class ResultsDiscount(Results):
           return beta / (alpha - 1)
 
 # Filter a sample
-def filter_sample(Model, Data, init, final, set_init=True, discount_model=True, reset_to_zero=False):
+def filter_sample(Model, Data, init, final, set_init=True, discount_model=True, reset_to_zero=False, forgetful=False, memory=100):
      Temp_Model = Model.copy()
      if set_init: Temp_Model.m[0,0] = Data[init]
      if reset_to_zero: Temp_Model.m[0,0] = 0
      if discount_model: results = ResultsDiscount()
      else: results = Results()
      for t in range(init, final):
-          ret = Temp_Model.filter(Data[t], return_results=True)
+          if t > init + memory: ret = Temp_Model.filter(Data[t], return_results=True, forgetful=forgetful, memory=memory)
+          else: ret = Temp_Model.filter(Data[t], return_results=True)
           results.append(ret)
      return results
 
@@ -206,13 +207,13 @@ class DLMDiscount(DLM):
      def copy(self):
           return DLMDiscount(self.m, self.C, self.G, self.F, self.df, self.alpha, self.beta)
 
-     def filter(self, z, return_results=False):
+     def filter(self, z, return_results=False, forgetful=False, memory=100):
 
           # Forecast step
           self.m, self.C, self.alpha, self.beta = self.forecast()
 
           # Data assimilation step
-          ret = self.data_assimilation(z)
+          ret = self.data_assimilation(z, forgetful, memory)
           self.m, self.C, self.alpha, self.beta = ret['m'], ret['C'], ret['alpha'], ret['beta']
 
           if return_results: return ret     
@@ -225,7 +226,7 @@ class DLMDiscount(DLM):
 
           return m_forecast, C_forecast, self.alpha, self.beta
      
-     def data_assimilation(self, obs):
+     def data_assimilation(self, obs, forgetful=False, memory=100):
 
           # Predictive distribution parameters
           f = np.dot(self.F, self.m)
@@ -241,8 +242,12 @@ class DLMDiscount(DLM):
           # Assimilate data
           m_analysis = self.m + np.dot(K, innovation)
           C_analysis = np.dot((np.identity(self.C.shape[0]) - np.dot(K, self.F)), self.C)
-          alpha_analysis = self.alpha + 0.5
-          beta_analysis = self.beta + 0.5 * np.dot(np.transpose(innovation), np.dot(Q_inv, innovation))
+          if forgetful:
+               alpha_analysis = self.alpha
+               beta_analysis = (1 - 1 / memory) * self.beta + 0.5 * np.dot(np.transpose(innovation), np.dot(Q_inv, innovation))
+          else:
+               alpha_analysis = self.alpha + 0.5
+               beta_analysis = self.beta + 0.5 * np.dot(np.transpose(innovation), np.dot(Q_inv, innovation))
           ret = {'m': m_analysis, 'C': C_analysis, 'alpha': alpha_analysis, 'beta': beta_analysis[0,0]}
 
           # Optional returns
