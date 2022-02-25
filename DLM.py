@@ -12,19 +12,61 @@ from scipy.linalg import block_diag
 from Utilities import load_data, check_shape, check_square
 from Matrix_Utilities import poly_mats, trig_mats, trig_inits
 
+class Results:
+     def __init__(self):
+          self.m = None
+          self.C = None
+          self.forecast = []
+          self.filter = []
+          self.innovation = []
+          self.obs_var = []
+     
+     def append(self, ret):
+          self.m = ret['m']
+          self.C = ret['C']
+          self.forecast.append(ret['forecast'][0,0])
+          self.filter.append(ret['filter'][0,0])
+          self.innovation.append(ret['innovation'][0,0])
+          self.obs_var.append(ret['obs_var'][0,0])
+     
+     def point_estimate(self):
+          return np.array(self.filter)
+     
+     def standardized_error(self):
+          innovation = np.array(self.innovation)
+          obs_var = np.array(self.obs_var)
+          return innovation / np.sqrt(obs_var)
+     
+class ResultsDiscount(Results):
+     def __init__(self):
+          super().__init__()
+          self.alpha = []
+          self.beta = []
+     
+     def append(self, ret):
+          self.forecast.append(ret['forecast'][0,0])
+          self.filter.append(ret['filter'][0,0])
+          self.innovation.append(ret['innovation'][0,0])
+          self.obs_var.append(ret['obs_var'][0,0])
+          self.alpha.append(ret['alpha'])
+          self.beta.append(ret['beta'])
+     
+     def var_point_estimate(self):
+          alpha = np.array(self.alpha)
+          beta = np.array(self.beta)
+          return beta / (alpha - 1)
+
 # Filter a sample
-def filter_sample(Model, Data, init, final, set_init=True):
-     if set_init: Model.m[0,0] = Data[init]
-     point_est = []
-     innovation = []
-     obs_var = []
+def filter_sample(Model, Data, init, final, set_init=True, discount_model=True, reset_to_zero=False):
+     Temp_Model = Model.copy()
+     if set_init: Temp_Model.m[0,0] = Data[init]
+     if reset_to_zero: Temp_Model.m[0,0] = 0
+     if discount_model: results = ResultsDiscount()
+     else: results = Results()
      for t in range(init, final):
-          ret = Model.filter(Data[t], return_results=True, return_innovation=True, return_obs_var=True, return_forecast=True)
-          point_est.append(Model.m[0,0])
-          #point_est.append(ret['forecast'][0,0])
-          innovation.append(ret['innovation'][0,0])
-          obs_var.append(ret['obs_var'][0,0])
-     return np.array(point_est), np.array(innovation), np.array(obs_var)
+          ret = Temp_Model.filter(Data[t], return_results=True)
+          results.append(ret)
+     return results
 
 # DLM parent class
 class DLM:
@@ -74,13 +116,17 @@ class DLM:
           # Observation covariance
           self.V = self.V + M.V
 
-     def filter(self, z, return_results=False, **kwargs):
+     def set_inits(self, results):
+          self.m = results.m
+          self.C = results.C
+
+     def filter(self, z, return_results=False):
 
           # Forecast step
           self.m, self.C = self.forecast()
 
           # Data assimilation step
-          ret = self.data_assimilation(z, **kwargs)
+          ret = self.data_assimilation(z)
           self.m, self.C = ret['m'], ret['C']
 
           if return_results: return ret     
@@ -93,7 +139,7 @@ class DLM:
 
           return m_forecast, C_forecast
      
-     def data_assimilation(self, obs, return_innovation=False, return_obs_var=False, return_forecast=False):
+     def data_assimilation(self, obs):
 
           # Predictive distribution parameters
           f = np.dot(self.F, self.m)
@@ -111,10 +157,11 @@ class DLM:
           ret = {'m': m_analysis, 'C': C_analysis}
 
           # Optional returns
-          if return_innovation: ret['innovation'] = innovation
-          if return_obs_var: ret['obs_var'] = Q
-          if return_forecast: ret['forecast'] = f
-
+          ret['forecast'] = f
+          ret['filter'] = m_analysis
+          ret['innovation'] = innovation
+          ret['obs_var'] = Q
+          
           return ret
 
      # Get Kalman Gain, given Q
@@ -159,13 +206,13 @@ class DLMDiscount(DLM):
      def copy(self):
           return DLMDiscount(self.m, self.C, self.G, self.F, self.df, self.alpha, self.beta)
 
-     def filter(self, z, return_results=False, **kwargs):
+     def filter(self, z, return_results=False):
 
           # Forecast step
           self.m, self.C, self.alpha, self.beta = self.forecast()
 
           # Data assimilation step
-          ret = self.data_assimilation(z, **kwargs)
+          ret = self.data_assimilation(z)
           self.m, self.C, self.alpha, self.beta = ret['m'], ret['C'], ret['alpha'], ret['beta']
 
           if return_results: return ret     
@@ -178,7 +225,7 @@ class DLMDiscount(DLM):
 
           return m_forecast, C_forecast, self.alpha, self.beta
      
-     def data_assimilation(self, obs, return_innovation=False, return_obs_var=False, return_forecast=False):
+     def data_assimilation(self, obs):
 
           # Predictive distribution parameters
           f = np.dot(self.F, self.m)
@@ -196,11 +243,12 @@ class DLMDiscount(DLM):
           C_analysis = np.dot((np.identity(self.C.shape[0]) - np.dot(K, self.F)), self.C)
           alpha_analysis = self.alpha + 0.5
           beta_analysis = self.beta + 0.5 * np.dot(np.transpose(innovation), np.dot(Q_inv, innovation))
-          ret = {'m': m_analysis, 'C': C_analysis, 'alpha': alpha_analysis, 'beta': beta_analysis}
+          ret = {'m': m_analysis, 'C': C_analysis, 'alpha': alpha_analysis, 'beta': beta_analysis[0,0]}
 
           # Optional returns
-          if return_innovation: ret['innovation'] = innovation
-          if return_obs_var: ret['obs_var'] = Q * self.beta / (self.alpha - 1)
-          if return_forecast: ret['forecast'] = f
-
+          ret['forecast'] = f
+          ret['filter'] = m_analysis
+          ret['innovation'] = innovation
+          ret['obs_var'] = Q * self.beta / (self.alpha - 1)
+          
           return ret
