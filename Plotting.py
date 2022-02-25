@@ -64,17 +64,18 @@ def acf_plot_innovation(ax, innovation, window, init, data_label, lags):
 # Diagnostic plots
 def diagnostic_plots(Model, Data, init, final, window, data_label, lags, partial=False):
 
-     innovation = filter_sample(Model, Data, init, final)[1]
-     sample = innovation[(window[0]-init):(window[1]-init)]
+     results = filter_sample(Model, Data, init, final)
+     err = results.standardized_error()
+     sample = err[(window[0]-init):(window[1]-init)]
 
      fig, ax = plt.subplots(figsize=(5, 5))
      error_plot(ax, sample, window[0], window[1], data_label)
      plt.show()
 
      fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-     qq_plot_innovation(axs[0], innovation, window, init, data_label)
-     if partial: pacf_plot_innovation(axs[1], innovation, window, init, data_label, lags=lags)
-     else: acf_plot_innovation(axs[1], innovation, window, init, data_label, lags=lags)
+     qq_plot_innovation(axs[0], err, window, init, data_label)
+     if partial: pacf_plot_innovation(axs[1], err, window, init, data_label, lags=lags)
+     else: acf_plot_innovation(axs[1], err, window, init, data_label, lags=lags)
      fig.tight_layout()
      plt.show()
 

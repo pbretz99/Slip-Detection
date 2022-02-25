@@ -40,19 +40,19 @@ def set_up_local_discount_filter(init_val, omega, df, alpha, beta, J=2):
 # Plot Model results on sample
 def quick_plot(Model, Data, data_label, init, final):
 
-     point_est, innovation, __ = filter_sample(Model, Data, init, final)
+     results = filter_sample(Model, Data, init, final)
 
      fig, axs = plt.subplots(2, 1, figsize=(8, 8))
-     filter_plot(axs[0], point_est, Data, init, final, data_label)
-     error_plot(axs[1], innovation, init, final, data_label)
+     filter_plot(axs[0], results.point_estimate(), Data, init, final, data_label)
+     error_plot(axs[1], results.standardized_error(), init, final, data_label)
      fig.tight_layout()
      plt.show()
 
 # ROC Curve
 def get_ROC(eps_range, Model, Data, TimesLabels, add_endpoints=True, pad=25, **kwargs):
 
-     __, innovation, obs_var = filter_sample(Model, Data, 0, len(Data))
-     err = innovation / np.sqrt(obs_var)
+     results = filter_sample(Model, Data, 0, len(Data))
+     err = results.standardized_error()
 
      f_p, t_p, med = [], [], []
 
@@ -87,8 +87,8 @@ def get_ROC(eps_range, Model, Data, TimesLabels, add_endpoints=True, pad=25, **k
 
 # Get times for a threshold
 def times_for_thresh(Model, Data, threshold, **kwargs):
-     __, innovation, obs_var = filter_sample(Model.copy(), Data, 0, len(Data))
-     err = innovation / np.sqrt(obs_var)
+     results = filter_sample(Model.copy(), Data, 0, len(Data))
+     err = results.standardized_error()
      TimesData_raw = get_times_from_vel(err, 0, threshold=threshold, burn_in=100)[0]
      TimesData = clean_times(TimesData_raw, Data, **kwargs)
      return TimesData
