@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import statsmodels.api as sm
 from statsmodels.graphics.tsaplots import plot_pacf, plot_acf
-from scipy.stats import invgamma
+from statsmodels.stats.stattools import durbin_watson
+from scipy.stats import invgamma, shapiro
 
 # Local Code
 from DLM import filter_sample
@@ -77,11 +78,16 @@ def acf_plot_innovation(ax, innovation, window, init, data_label, lags):
      ax.set_title('Autocorrelation for %s Sample' %data_label)
 
 # Diagnostic plots
-def diagnostic_plots(Model, Data, init, final, window, data_label, lags, partial=False):
+def diagnostic_plots(results, Data, init, final, window, data_label, lags, partial=False, verbose=True):
 
-     results = filter_sample(Model, Data, init, final)
      err = results.standardized_error()
      sample = err[(window[0]-init):(window[1]-init)]
+
+     # Print Statistics
+     if verbose:
+          shapiro_test = shapiro(sample)
+          print('Shapiro-Wilks Test p-value: %2.4f' %shapiro_test.pvalue)
+          print('Durbin-Watson Statistic: %2.2f' %durbin_watson(sample))
 
      fig, ax = plt.subplots(figsize=(5, 5))
      error_plot(ax, sample, window[0], window[1], data_label)

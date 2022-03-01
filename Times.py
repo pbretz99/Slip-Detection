@@ -11,6 +11,59 @@ def get_times_from_labels(labels):
      return np.array(TimesLabels)
 
 
+def get_times_from_sigma(sigma, init, window_start, window_end, init_regime='Stick', burn_in=100):
+
+     slip_start_times, slip_end_times = [], []
+     W1, W2 = min(window_end[0], window_start[0]), max(window_end[1], window_start[1])
+     regime = init_regime
+     potential_slip_start_times, potential_slip_end_times = np.array([]).astype(int), np.array([]).astype(int)
+     for i in range(burn_in-W1+1, len(sigma)-W2):
+          
+          slip_start_sample = sigma[(i+window_start[0]):(i+window_start[1])]
+          slip_end_sample = sigma[(i+window_end[0]):(i+window_end[1])]
+
+          if regime == 'Stick':
+
+               # Collect potential slip starts
+               if np.all(slip_start_sample >= sigma[i]):
+                    potential_slip_start_times = np.concatenate((potential_slip_start_times, np.array([i])))
+               
+               # Stop at next potential slip end
+               if np.all(slip_end_sample <= sigma[i]):
+                    
+                    # Record best slip start
+                    if np.any(potential_slip_start_times):
+                         slip_start_times.append(potential_slip_start_times[np.argmin(sigma[potential_slip_start_times])])
+                    
+                    # Reset regime and record potential slip end
+                    regime = 'Slip'
+                    potential_slip_end_times = np.array([i])
+          
+          if regime == 'Slip':
+
+               # Collect potential slip ends
+               if np.all(slip_end_sample <= sigma[i]):
+                    potential_slip_end_times = np.concatenate((potential_slip_end_times, np.array([i])))
+               
+               # Stop at next potential slip start
+               if np.all(slip_start_sample >= sigma[i]):
+
+                    # Record best slip end
+                    if np.any(potential_slip_end_times):
+                         slip_end_times.append(potential_slip_end_times[np.argmax(sigma[potential_slip_end_times])])
+
+                    # Reset regime and record potential slip start
+                    regime = 'Stick'
+                    potential_slip_start_times = np.array([i])
+
+     # Final time
+     if regime == 'Stick':
+          slip_start_times.append(potential_slip_start_times[np.argmin(sigma[potential_slip_start_times])])
+     if regime == 'Slip':
+          slip_end_times.append(potential_slip_end_times[np.argmax(sigma[potential_slip_end_times])])
+
+     return np.array(slip_start_times)+init, np.array(slip_end_times)+init
+
 # Using estimated change, find raw times of changepoints
 def get_times_from_vel(vel_est, init, threshold=0, burn_in=0):
      
