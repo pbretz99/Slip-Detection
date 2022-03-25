@@ -4,6 +4,9 @@ Produce Plots
 
 # Libraries
 import matplotlib.pyplot as plt
+import matplotlib.collections as mcoll
+import matplotlib.path as mpath
+import matplotlib.cm as cm
 import numpy as np
 import statsmodels.api as sm
 from statsmodels.graphics.tsaplots import plot_pacf, plot_acf
@@ -78,7 +81,7 @@ def acf_plot_innovation(ax, innovation, window, init, data_label, lags):
      ax.set_title('Autocorrelation for %s Sample' %data_label)
 
 # Diagnostic plots
-def diagnostic_plots(results, Data, init, final, window, data_label, lags, partial=False, verbose=True):
+def diagnostic_plots(results, init, window, data_label, lags, partial=False, verbose=True, show_plots=True):
 
      err = results.standardized_error()
      sample = err[(window[0]-init):(window[1]-init)]
@@ -89,16 +92,19 @@ def diagnostic_plots(results, Data, init, final, window, data_label, lags, parti
           print('Shapiro-Wilks Test p-value: %2.4f' %shapiro_test.pvalue)
           print('Durbin-Watson Statistic: %2.2f' %durbin_watson(sample))
 
-     fig, ax = plt.subplots(figsize=(5, 5))
-     error_plot(ax, sample, window[0], window[1], data_label)
-     plt.show()
+     if show_plots:
+          fig, ax = plt.subplots(figsize=(5, 5))
+          error_plot(ax, sample, window[0], window[1], data_label)
+          plt.show()
 
-     fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-     qq_plot_innovation(axs[0], err, window, init, data_label)
-     if partial: pacf_plot_innovation(axs[1], err, window, init, data_label, lags=lags)
-     else: acf_plot_innovation(axs[1], err, window, init, data_label, lags=lags)
-     fig.tight_layout()
-     plt.show()
+          fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+          qq_plot_innovation(axs[0], err, window, init, data_label)
+          if partial: pacf_plot_innovation(axs[1], err, window, init, data_label, lags=lags)
+          else: acf_plot_innovation(axs[1], err, window, init, data_label, lags=lags)
+          fig.tight_layout()
+          plt.show()
+     
+     return sample
 
 #############################
 # Plot Measures of Accuracy #
@@ -121,3 +127,56 @@ def plot_inv_gamma(ax, alpha, beta, scale=5, num=100, **kwargs):
      else: mean = beta
      x = np.linspace(0, scale * mean, num=num)
      ax.plot(x, RV.pdf(x), **kwargs)
+
+################################
+# Gradation Line Functionality #
+################################
+
+
+def colorline(ax, x, y, z=None, cmap=plt.get_cmap('copper'), norm=None, linewidth=3, alpha=1.0, add_colorbar=False, cbar_label=None):
+
+     # Default colors equally spaced on [0,1]:
+     if z is None:
+          z = np.linspace(0.0, 1.0, len(x))
+
+     # Special case if a single number:
+     if not hasattr(z, "__iter__"):  # to check for numerical input -- this is a hack
+          z = np.array([z])
+
+     z = np.asarray(z)
+
+     x_new, y_new, z_new = interpolation(x, y, z)
+
+     if norm is None and len(z_new) > 1:
+          norm = plt.Normalize(z_new[0], z_new[-1])
+     if norm is None and len(z_new) == 1:
+          norm = plt.Normalize(0, 1)
+
+     segments = make_segments(x_new, y_new)
+     lc = mcoll.LineCollection(segments, array=z_new, cmap=cmap, norm=norm,
+                               linewidth=linewidth, alpha=alpha)
+
+     #ax = plt.gca()
+     ax.add_collection(lc)
+
+     if add_colorbar:
+          plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label=cbar_label)
+
+     return lc
+
+def interpolation(x, y, t=None):
+
+     path = mpath.Path(np.column_stack([x, y]))
+     verts = path.interpolated(steps=3).vertices
+     x_new, y_new = verts[:, 0], verts[:, 1]
+
+     if t is None: return x_new, y_new
+
+     path_t = mpath.Path(np.column_stack([t, t]))
+     t_new = path_t.interpolated(steps=3).vertices[:, 0]
+     return x_new, y_new, t_new
+
+def make_segments(x, y):
+     points = np.array([x, y]).T.reshape(-1, 1, 2)
+     segments = np.concatenate([points[:-1], points[1:]], axis=1)
+     return segments

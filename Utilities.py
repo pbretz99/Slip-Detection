@@ -4,6 +4,7 @@ Utility Functions
 
 # Libraries
 import numpy as np
+from scipy.stats import norm
 
 # Simple progress tracker
 def print_tracker(i, N, factor=0.1):
@@ -21,6 +22,12 @@ def get_times_in_range(init, final, Times):
           if t >= init and t <= final:
                ret.append(t)
      return np.array(ret)
+
+# Get probability of credible interval at threshold eps
+def get_prob_of_credible_interval(eps):
+     p_lower = norm.cdf(-eps)
+     p = 1 - 2 * p_lower
+     return p
 
 # Ensure np shape arrays are all 2-d
 def check_shape(vec, column=True):

@@ -9,7 +9,7 @@ from numpy import pi, sin, cos
 from scipy.linalg import block_diag
 
 # Local Code
-from Utilities import load_data, check_shape, check_square
+from Utilities import load_data, check_shape, check_square, print_tracker
 from Matrix_Utilities import poly_mats, trig_mats, trig_inits
 
 class Results:
@@ -57,17 +57,50 @@ class ResultsDiscount(Results):
           return beta / (alpha - 1)
 
 # Filter a sample
-def filter_sample(Model, Data, init, final, set_init=True, discount_model=True, reset_to_zero=False, forgetful=False, memory=100):
+def filter_sample(Model, Data, init, final, set_init=True, discount_model=True, reset_to_zero=False, forgetful=False, memory=100, verbose=False):
      Temp_Model = Model.copy()
      if set_init: Temp_Model.m[0,0] = Data[init]
      if reset_to_zero: Temp_Model.m[0,0] = 0
      if discount_model: results = ResultsDiscount()
      else: results = Results()
      for t in range(init, final):
+          if verbose: print_tracker(t-init, final-init)
           if t > init + memory: ret = Temp_Model.filter(Data[t], return_results=True, forgetful=forgetful, memory=memory)
           else: ret = Temp_Model.filter(Data[t], return_results=True)
           results.append(ret)
+     if verbose: print('Complete!')
      return results
+
+# Initialize discount filter with local level and drift term + periodic
+def set_up_drift_discount_filter(init_val, omega, df, alpha, beta, J=2, my_EKF=False):
+
+     m = np.array([[init_val], [0]])
+     C = np.array([[0.05, 0.01], [0.01, 0.05]])
+
+     Model = DLMPoly(m, C, [0, 0], np.array([[0]]))
+     if J > 0:
+          ModelTrig = DLMTrig(1, omega, J, 0, np.array([[0]]))
+          Model.add_model(ModelTrig)
+     
+     discount_Model = Model.to_discount(df, alpha, beta)
+     discount_Model.my_EKF = my_EKF
+     
+     return discount_Model
+
+# Initialize discount filter with local level + periodic
+def set_up_local_discount_filter(init_val, omega, df, alpha, beta, J=2, my_EKF=False):
+
+     m = np.array([[init_val]])
+     C = np.array([[0.05]])
+
+     Model = DLMPoly(m, C, [0], np.array([[0]]))
+     ModelTrig = DLMTrig(1, omega, J, 0, np.array([[0]]))
+     Model.add_model(ModelTrig)
+     
+     discount_Model = Model.to_discount(df, alpha, beta)
+     discount_Model.my_EKF = my_EKF
+     
+     return discount_Model
 
 # DLM parent class
 class DLM:
@@ -196,13 +229,14 @@ class DLMTrig(DLM):
 
 # Discount model
 class DLMDiscount(DLM):
-     def __init__(self, m, C, G, F, df, alpha, beta):
+     def __init__(self, m, C, G, F, df, alpha, beta, my_EKF=False):
           W = np.identity(C.shape[0])
           V = np.array([[1]])
           super().__init__(m, C, G, F, W, V)
           self.df = df
           self.alpha = alpha
           self.beta = beta
+          self.my_EKF = my_EKF
      
      def copy(self):
           return DLMDiscount(self.m, self.C, self.G, self.F, self.df, self.alpha, self.beta)
@@ -220,9 +254,17 @@ class DLMDiscount(DLM):
 
      def forecast(self):
 
+          # Test out EKF filter with update of the form mu <- mu * e^b + nu
+          if self.my_EKF:
+               self.G[0,0] = np.exp(self.m[1,0])
+               self.G[0,1] = self.m[0,0] * np.exp(self.m[1,0])
+
           # Forecast distribution parameters
           m_forecast = np.dot(self.G, self.m)
           C_forecast = (1 / self.df) * np.dot(self.G, np.dot(self.C, self.G_T))
+
+          # Set forecast m directly
+          if self.my_EKF: m_forecast[0,0] = self.m[0,0] * np.exp(self.m[1,0])
 
           return m_forecast, C_forecast, self.alpha, self.beta
      

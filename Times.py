@@ -10,6 +10,29 @@ def get_times_from_labels(labels):
                TimesLabels.append(i)
      return np.array(TimesLabels)
 
+def get_times_from_error(err, init, threshold, window_size, burn_in=100):
+
+     slip_start_times, slip_end_times = [], []
+     
+     # Initial regime
+     sample = err[burn_in:(burn_in+window_size)]
+     if np.all(sample < threshold): regime = 'Stick'
+     else: regime = 'Slip'
+
+     # Loop over times
+     for i in range(window_size+burn_in, len(err)):
+
+          sample = np.abs(err[(i-window_size):(i+1)])
+          
+          if regime == 'Stick' and sample[-1] >= threshold:
+               slip_start_times.append(i+init)
+               regime = 'Slip'
+          
+          elif regime == 'Slip' and np.all(sample < threshold):
+               slip_end_times.append(i+init-window_size)
+               regime = 'Stick'
+     
+     return np.array(slip_start_times), np.array(slip_end_times)
 
 def get_times_from_sigma(sigma, init, window_start, window_end, init_regime='Stick', burn_in=100):
 
@@ -118,6 +141,7 @@ def match_times(detected_times, times_for_matching, pad=0):
 
 # Examine this function closer
 def get_indices_matched(diffs_to_labels, matched_W2_times_to_labels):
+     if len(diffs_to_labels) == 0: return np.array([]), np.array([])
      ind_label_matched = []
      for i in range(len(diffs_to_labels)-1):
           match = True
@@ -139,12 +163,14 @@ def print_measures_from_times(TimesW2, TimesLabels, cut_off=100, pad=25):
      print('False Positive Rate: %2.3f percent, Total Extra: %i out of %i' %(f_p * 100, counts_dict['W2'] - counts_dict['Matched'], counts_dict['W2']))
 
      # Advance notice stats
-     print('%2.3f percent not in advance; %i detections not in advance' %(100 * f_n_dict['Just Missed'], counts_dict['Just Missed']))
+     print('%2.3f percent of matched times not in advance; %i detections not in advance' %(100 * f_n_dict['Just Missed'], counts_dict['Just Missed']))
      print('Average advance notice: %2.2f' %(advance_dict['Mean']))
      print('Median advance notice: %2.2f' %(advance_dict['Median']))
      print('Min advance notice: %2.2f' %(advance_dict['Min']))
-     print('%2.3f percent more than %i frames before; %i times' %(f_n_dict['Past Cutoff'] * 100, cut_off, counts_dict['Past Cutoff']))
+     print('%2.3f percent of matched times more than %i frames before; %i times' %(f_n_dict['Past Cutoff'] * 100, cut_off, counts_dict['Past Cutoff']))
      print('Total False Negative Rate: %2.3f percent' %(100 * f_n_dict['Total']))
+     print('\nTotal True Positive Rate: %2.3f percent' %(100 * (1 - f_n_dict['Total'])))
+     print('Total False Positive Rate: %2.3f percent' %(100 * f_p))
 
 def get_all_measures_from_times(TimesW2, TimesLabels, cut_off=100, pad=25):
 
@@ -173,6 +199,7 @@ def get_all_measures_from_times(TimesW2, TimesLabels, cut_off=100, pad=25):
      f_n_cutoff, f_n_just_missed, min = 0, 0, 0
      ave, med = 0, 0
      N_just_missed, N_past_cutoff = 0, 0
+     f_n_total = f_n_missed
      
      if N_times > 0:
           vals = diffs_to_labels[ind_label_matched]
@@ -186,13 +213,42 @@ def get_all_measures_from_times(TimesW2, TimesLabels, cut_off=100, pad=25):
           if len(good_vals > 0):
                ave = np.mean(good_vals)
                med = np.median(good_vals)
+          f_n_total = (N_missed + N_just_missed + N_past_cutoff) / N_slips
      
      # Arrange dictionaries
-     f_n_total = f_n_missed + f_n_cutoff + f_n_just_missed
-     f_n_total = np.min((f_n_total, 1))
+     #f_n_total = f_n_missed + f_n_cutoff + f_n_just_missed
+     #f_n_total = np.min((f_n_total, 1))
      f_n_dict = {'Missed': f_n_missed, 'Past Cutoff': f_n_cutoff, 'Just Missed': f_n_just_missed, 'Total': f_n_total}
      
      advance_dict = {'Mean': ave, 'Median': med, 'Min': min}
      counts_dict = {'Labels': N_slips, 'W2': N_times, 'Matched': N_matched, 'Missed': N_missed, 'Just Missed': N_just_missed, 'Past Cutoff': N_past_cutoff, 'Diffs': vals}
      
      return f_n_dict, f_p, advance_dict, counts_dict
+
+# Just get the three accuracy measures
+def get_accuracy_measures_from_times(TimesData, Times, **kwargs):
+
+     if len(TimesData) == 0: return 1, 1, 0
+     
+     f_n_dict, f_p, advance_dict, __ = get_all_measures_from_times(TimesData, Times, **kwargs)
+     t_p = 1 - f_n_dict['Total']
+     med = advance_dict['Median']
+     return f_p, t_p, med
+
+# Go back in time to meet threshold to get new start times
+def get_start_times(Times, Data, threshold, window_size, init=0):
+
+     t_prev = init
+     start_times = []
+     for t in Times:
+          sample = Data[(t_prev+1-init):(t+1-init)]
+          start_time = t_prev + 1
+          if len(sample) > window_size:
+               for i in reversed(range(window_size, len(sample))):
+                    current_sample = sample[(i-window_size):(i+1)]
+                    if np.all(np.abs(current_sample) <= threshold):
+                         start_time = t_prev + 1 + i
+                         break
+          t_prev = t
+          start_times.append(start_time)
+     return np.array(start_times)
