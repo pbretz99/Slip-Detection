@@ -1,7 +1,14 @@
+'''
+Model-Based Slip Detection
+
+This code develops a model-based approach to identifying slip
+periods in the wall velocity and detecting them in the W2B0 
+measure.
+'''
+
 # Libraries
 import matplotlib.pyplot as plt
 import numpy as np
-import statsmodels.api as sm
 
 # Local Code
 from DLM import set_up_local_discount_filter, set_up_drift_discount_filter, filter_sample
