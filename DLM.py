@@ -239,7 +239,7 @@ class DLMDiscount(DLM):
           self.my_EKF = my_EKF
      
      def copy(self):
-          return DLMDiscount(self.m, self.C, self.G, self.F, self.df, self.alpha, self.beta)
+          return DLMDiscount(self.m, self.C, self.G, self.F, self.df, self.alpha, self.beta, self.my_EKF)
 
      def filter(self, z, return_results=False, forgetful=False, memory=100):
 

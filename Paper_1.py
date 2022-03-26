@@ -13,13 +13,13 @@ import numpy as np
 # Local Code
 from DLM import set_up_local_discount_filter, set_up_drift_discount_filter, filter_sample
 from Plotting import diagnostic_plots, filter_plot, error_plot, colorline
-from Times import get_times_from_error, get_accuracy_measures_from_times, get_start_times
+from Times import get_times_from_error, get_accuracy_measures_from_times, get_start_times, print_measures_from_times
 from Utilities import load_data
 
 # List of standard models
 def get_models():
 
-     ModelVel = set_up_local_discount_filter(0, omega=0.2618, df=0.76, alpha=2, beta=0.0001**2, J=3)
+     ModelVel = set_up_local_discount_filter(0, omega=0.2618, df=0.75, alpha=2, beta=0.0001**2, J=3)
      ModelW2B0 = set_up_drift_discount_filter(0.1, omega=0.5466, df=0.75, alpha=2, beta=0.0001**2, J=3, my_EKF=True)
      ModelW2B1 = set_up_drift_discount_filter(0.1, omega=0.5466, df=0.75, alpha=2, beta=0.0001**2, J=3, my_EKF=True)
      ModelPerc = set_up_drift_discount_filter(0.1, omega=0.5466, df=0.85, alpha=2, beta=0.0001**2, J=3)
@@ -270,7 +270,7 @@ def run_Vel_fixed(threshold_detect=1.5, threshold_start=0.001):
      fig.tight_layout()
      plt.show()
 
-def run_W2_fixed(threshold_W2=1.5):
+def run_W2_fixed(threshold_W2=1):
      W2 = load_data('w2_b0')
      Vel = load_data('xvelocity')
      models = get_models()
@@ -278,6 +278,7 @@ def run_W2_fixed(threshold_W2=1.5):
      vel_times = get_vel_times(ModelVel)
      results = filter_sample(ModelW2, W2, 1, len(W2))
      times_W2, __ = get_times_from_error(results.standardized_error(), 1, threshold=threshold_W2, window_size=25)
+     print_measures_from_times(times_W2, vel_times, cut_off=150)
      f_p, t_p, med = get_accuracy_measures_from_times(times_W2, vel_times, cut_off=150)
      print('At threshold %2.5f, fp = %2.3f percent, tp = %2.3f percent, and med = %2.1f' %(threshold_W2, f_p * 100, t_p * 100, med))
 
@@ -316,7 +317,7 @@ if __name__ == "__main__":
      run_stick_sample([(9150, 9550), (19425, 19825), (30400, 30700)])
      
      # Run model diagnostics for Velocity and W2B0
-     run_Vel_and_W2_diagnostics(print_W2=False)
+     run_Vel_and_W2_diagnostics()
 
      # Run threshold variation for Velocity and W2B0
      run_Vel_and_W2_var()
