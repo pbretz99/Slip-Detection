@@ -244,7 +244,7 @@ class DLMDiscount(DLM):
      def filter(self, z, return_results=False, forgetful=False, memory=100):
 
           # Forecast step
-          self.m, self.C, self.alpha, self.beta = self.forecast()
+          self.m, self.C, self.alpha, self.beta = self.forecast(z)
 
           # Data assimilation step
           ret = self.data_assimilation(z, forgetful, memory)
@@ -252,10 +252,11 @@ class DLMDiscount(DLM):
 
           if return_results: return ret     
 
-     def forecast(self):
+     def forecast(self, obs, tol=0.000000001):
 
           # Test out EKF filter with update of the form mu <- mu * e^b + nu
           if self.my_EKF:
+               if np.abs(self.m[0,0]) < tol: self.m[0,0] = obs
                self.G[0,0] = np.exp(self.m[1,0])
                self.G[0,1] = self.m[0,0] * np.exp(self.m[1,0])
 

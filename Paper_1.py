@@ -14,7 +14,7 @@ import numpy as np
 from DLM import set_up_local_discount_filter, set_up_drift_discount_filter, filter_sample
 from Plotting import diagnostic_plots, filter_plot, error_plot, colorline
 from Times import get_times_from_error, get_accuracy_measures_from_times, get_start_times, print_measures_from_times
-from Utilities import load_data
+from Utilities import load_data, load_data_other_runs
 
 # List of standard models
 def get_models():
@@ -53,10 +53,11 @@ def run_diagnostic(measure, Model, data_label, range=(9150, 9550), window=(9300,
      sample = diagnostic_plots(results, init, window, data_label, lags=15, show_plots=show_diagnostic_plots, verbose=verbose)
      return sample
 
-def get_vel_times(ModelVel, threshold_detect=1.5, threshold_start=0.001):
+def get_vel_times(ModelVel, threshold_detect=1.5, threshold_start=0.001, other_runs=False):
 
      # Load data
-     Vel = load_data('xvelocity')
+     if other_runs: Vel = load_data_other_runs('xvelocity', dynamic=True)
+     else: Vel = load_data('xvelocity')
 
      # Create model
      ModelVel = set_up_local_discount_filter(Vel[1], omega=0.2618, df=0.75, alpha=2, beta=0.0001**2, J=3)
@@ -271,21 +272,43 @@ def run_Vel_fixed(threshold_detect=1.5, threshold_start=0.001):
      plt.show()
 
 def run_W2_fixed(threshold_W2=1):
-     W2 = load_data('w2_b0')
-     Vel = load_data('xvelocity')
+     
      models = get_models()
      ModelVel, ModelW2 = models[0], models[1]
-     vel_times = get_vel_times(ModelVel)
-     results = filter_sample(ModelW2, W2, 1, len(W2))
-     times_W2, __ = get_times_from_error(results.standardized_error(), 1, threshold=threshold_W2, window_size=25)
-     print_measures_from_times(times_W2, vel_times, cut_off=150)
-     f_p, t_p, med = get_accuracy_measures_from_times(times_W2, vel_times, cut_off=150)
-     print('At threshold %2.5f, fp = %2.3f percent, tp = %2.3f percent, and med = %2.1f' %(threshold_W2, f_p * 100, t_p * 100, med))
 
-     fig, ax = plt.subplots(figsize=(5, 5))
-     ax.hist(Vel[times_W2], bins=30, color='lightblue', edgecolor='black')
-     ax.set_xlabel('X Wall Velocity')
-     ax.set_title('Wall Velocity at Detection')
+     type = ['Train', 'Test']
+     times_W2, times_vel, Vel_list = [], [], []
+
+     for i in [0, 1]:
+
+          print('\nRunning %s\n' %type[i])
+          
+          if type[i] == 'Train':
+               times_vel.append(get_vel_times(ModelVel))
+               W2 = load_data('w2_b0')
+               Vel_list.append(load_data('xvelocity'))
+          else:
+               times_vel.append(get_vel_times(ModelVel, other_runs=True))
+               W2 = load_data_other_runs('w2_b0', dynamic=True)
+               Vel_list.append(load_data_other_runs('xvelocity', dynamic=True))
+          
+          results = filter_sample(ModelW2, W2, 1, len(W2))
+          times_W2.append(get_times_from_error(results.standardized_error(), 1, threshold=threshold_W2, window_size=25)[0])
+
+     for i in [0, 1]:
+          print_measures_from_times(times_W2[i], times_vel[i], cut_off=150)
+          f_p, t_p, med = get_accuracy_measures_from_times(times_W2[i], times_vel[i], cut_off=150)
+          print('\n%s: at threshold %2.5f, fp = %2.3f percent, tp = %2.3f percent, and med = %2.1f\n' %(type[i], threshold_W2, f_p * 100, t_p * 100, med))
+
+     fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+     for i in [0, 1]:
+          vals = Vel_list[i][times_W2[i]]
+          axs[i].hist(vals[vals < 0.003], bins=30, color='lightblue', edgecolor='black')
+          axs[i].set_xlabel('X Wall Velocity')
+          axs[i].set_title('Wall Velocity at Detection (%s)' %type[i])
+          axs[i].set_xlim(right=0.004)
+     
+     fig.tight_layout()
      plt.show()
 
 # Run threshold variation for other measures
@@ -314,17 +337,17 @@ def run_threshold_var_all(eps_range=np.linspace(0, 5, 25)):
 if __name__ == "__main__":
      
      # Get stick samples
-     run_stick_sample([(9150, 9550), (19425, 19825), (30400, 30700)])
+     #run_stick_sample([(9150, 9550), (19425, 19825), (30400, 30700)])
      
      # Run model diagnostics for Velocity and W2B0
-     run_Vel_and_W2_diagnostics()
+     #run_Vel_and_W2_diagnostics()
 
      # Run threshold variation for Velocity and W2B0
-     run_Vel_and_W2_var()
+     #run_Vel_and_W2_var()
 
      # Run fixed analysis for Velocity and W2B0
-     run_Vel_fixed()
+     #run_Vel_fixed()
      run_W2_fixed()
 
      # Run threshold variation for other measures
-     run_threshold_var_all()
+     #run_threshold_var_all()

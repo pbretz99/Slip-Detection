@@ -12,8 +12,19 @@ def print_tracker(i, N, factor=0.1):
      if i % skip == 0: print(round((i / N) * 100), 'percent')
 
 # Load data stored as a numpy array
-def load_data(filename, data_path="C:/Users/Owner/Documents/Research/Slip Analysis/Data/Long_Run/"):
-     return np.load(data_path + filename + '.npy')
+def load_data(filename, data_path="C:/Users/Owner/Documents/Research/Slip Analysis/Data/Long_Run/", dynamic=False):
+     data = np.load(data_path + filename + '.npy')
+     if dynamic: data = data[1:]
+     return data
+
+# Wrapper for loading data from the additional runs
+def load_data_other_runs(measure, dynamic=False):
+     data_path = "C:/Users/Owner/Documents/Research/Slip Analysis/Data/Additional_Runs/s1%i/"
+     Data = np.array([])
+     for i in range(1, 5):
+          current_data = load_data(measure, data_path%i, dynamic)
+          Data = np.concatenate((Data, current_data))
+     return Data
 
 # Get times in a given range
 def get_times_in_range(init, final, Times):
