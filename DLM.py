@@ -4,12 +4,10 @@ DLM Models and Relevant Functionality
 
 # Libraries
 import numpy as np
-import matplotlib.pyplot as plt
-from numpy import pi, sin, cos
 from scipy.linalg import block_diag
 
 # Local Code
-from Utilities import load_data, check_shape, check_square, print_tracker
+from Utilities import check_shape, check_square, print_tracker
 from Matrix_Utilities import poly_mats, trig_mats, trig_inits
 
 class Results:
