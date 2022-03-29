@@ -22,9 +22,15 @@ from Utilities import get_times_in_range
 #############
 
 # Plot a filtered estimate over sample
-def filter_plot(ax, point_est, Data, init, final, data_label):
+def filter_plot(ax, point_est, Data, init, final, data_label, kind='filter'):
+     if kind == 'filter': kind_label = 'Filter'
+     elif kind == 'forecast': kind_label = 'Forecast'
+     elif kind == 'level': kind_label = 'Local Level'
+     else:
+          print('Invalid kind. Valid kinds are filter and forecast.')
+          return 0
      ax.plot(range(init, final), Data[init:final], c='gray', alpha=0.75, label=data_label)
-     ax.plot(range(init, final), point_est, c='steelblue', label='Filter')
+     ax.plot(range(init, final), point_est, c='steelblue', label=kind_label)
      ax.legend()
      ax.set_ylabel(data_label)
      ax.set_title('Filtered Est. of %s' %data_label)

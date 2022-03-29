@@ -28,13 +28,13 @@ def get_models():
      return [ModelVel, ModelW2B0, ModelW2B1, ModelPerc, ModelTP0]
 
 # Plot Model results on sample
-def quick_plot(axs, results, Data, data_label, init, final, burn_in=0):
+def quick_plot(axs, results, Data, data_label, init, final, kind='filter', burn_in=0):
 
      init = init + burn_in
-     filter_plot(axs[0], results.point_estimate()[burn_in:], Data, init, final, data_label)
+     filter_plot(axs[0], results.point_estimate(kind=kind)[burn_in:], Data, init, final, data_label, kind=kind)
      error_plot(axs[1], results.standardized_error()[burn_in:], init, final, data_label)
 
-def run_diagnostic(measure, Model, data_label, range=(9150, 9550), window=(9300, 9400), burn_in=1000, show_plot=True, show_diagnostic_plots=True, verbose=True):
+def run_diagnostic(measure, Model, data_label, range=(9150, 9550), window=(9300, 9400), burn_in=1000, show_plot=True, kind='filter', show_diagnostic_plots=True, verbose=True):
      
      # Load data
      Data = load_data(measure)
@@ -45,7 +45,7 @@ def run_diagnostic(measure, Model, data_label, range=(9150, 9550), window=(9300,
      results = filter_sample(Model, Data, init, final)
      if show_plot:
           fig, axs = plt.subplots(2, 1, figsize=(7, 7))
-          quick_plot(axs, results, Data, data_label, init, final, burn_in=burn_in)
+          quick_plot(axs, results, Data, data_label, init, final, burn_in=burn_in, kind=kind)
           fig.tight_layout()
           plt.show()
 

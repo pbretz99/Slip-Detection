@@ -14,23 +14,26 @@ from Matrix_Utilities import poly_mats, trig_mats, trig_inits
 
 class Results:
      def __init__(self):
-          self.m = None
-          self.C = None
           self.forecast = []
           self.filter = []
+          self.local_level = []
           self.innovation = []
           self.obs_var = []
      
      def append(self, ret):
-          self.m = ret['m']
-          self.C = ret['C']
           self.forecast.append(ret['forecast'][0,0])
           self.filter.append(ret['filter'][0,0])
+          self.local_level.append(ret['m'][0,0])
           self.innovation.append(ret['innovation'][0,0])
           self.obs_var.append(ret['obs_var'][0,0])
      
-     def point_estimate(self):
-          return np.array(self.filter)
+     def point_estimate(self, kind='filter'):
+          if kind == 'filter': return np.array(self.filter)
+          elif kind == 'forecast': return np.array(self.forecast)
+          elif kind == 'level': return np.array(self.local_level)
+          else:
+               print('Invalid kind. Valid kinds are filter, forecast, or level.')
+               return 0
      
      def standardized_error(self):
           innovation = np.array(self.innovation)
@@ -46,6 +49,7 @@ class ResultsDiscount(Results):
      def append(self, ret):
           self.forecast.append(ret['forecast'][0,0])
           self.filter.append(ret['filter'][0,0])
+          self.local_level.append(ret['m'][0,0])
           self.innovation.append(ret['innovation'][0,0])
           self.obs_var.append(ret['obs_var'][0,0])
           self.alpha.append(ret['alpha'])
@@ -192,7 +196,7 @@ class DLM:
 
           # Optional returns
           ret['forecast'] = f
-          ret['filter'] = m_analysis
+          ret['filter'] = np.dot(self.F, m_analysis)
           ret['innovation'] = innovation
           ret['obs_var'] = Q
           
@@ -295,7 +299,7 @@ class DLMDiscount(DLM):
 
           # Optional returns
           ret['forecast'] = f
-          ret['filter'] = m_analysis
+          ret['filter'] = np.dot(self.F, m_analysis)
           ret['innovation'] = innovation
           ret['obs_var'] = Q * self.beta / (self.alpha - 1)
           
