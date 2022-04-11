@@ -21,6 +21,12 @@ def poly_mats(W_list, V):
      add_above_diag(G)
      return G, F, W, V
 
+def poly_kind(n):
+     kind_list = []
+     for i in range(n):
+          kind_list.append('Polynomial Degree %i' %i)
+     return kind_list
+
 def trig_evol_mat(omega):
      H = np.array([[cos(omega), sin(omega)], [-sin(omega), cos(omega)]])
      return H
@@ -42,4 +48,9 @@ def trig_inits(q, init_var):
      C = np.identity(q*2) * init_var
      return m, C
 
-
+def trig_kind(q):
+     kind_list = []
+     for i in range(q):
+          kind_list.append('Harmonic %i' %(i+1))
+          kind_list.append('Conjugate %i' %(i+1))
+     return kind_list

@@ -8,13 +8,14 @@ from scipy.linalg import block_diag
 
 # Local Code
 from Utilities import check_shape, check_square, print_tracker
-from Matrix_Utilities import poly_mats, trig_mats, trig_inits
+from Matrix_Utilities import poly_mats, poly_kind, trig_mats, trig_inits, trig_kind
 
 class Results:
      def __init__(self):
           self.forecast = []
           self.filter = []
           self.local_level = []
+          self.amplitudes = []
           self.innovation = []
           self.obs_var = []
      
@@ -22,6 +23,7 @@ class Results:
           self.forecast.append(ret['forecast'][0,0])
           self.filter.append(ret['filter'][0,0])
           self.local_level.append(ret['m'][0,0])
+          self.amplitudes.append(ret['amplitudes'])
           self.innovation.append(ret['innovation'][0,0])
           self.obs_var.append(ret['obs_var'][0,0])
      
@@ -37,6 +39,15 @@ class Results:
           innovation = np.array(self.innovation)
           obs_var = np.array(self.obs_var)
           return innovation / np.sqrt(obs_var)
+
+     def amplitude(self, separate=False):
+          if separate: return np.transpose(np.array(self.amplitudes))
+          full_amplitude = []
+          for amps in self.amplitudes:
+               A_squared = 0
+               for A in amps: A_squared += A ** 2
+               full_amplitude.append(np.sqrt(A_squared))
+          return np.array(full_amplitude)
      
 class ResultsDiscount(Results):
      def __init__(self):
@@ -48,6 +59,7 @@ class ResultsDiscount(Results):
           self.forecast.append(ret['forecast'][0,0])
           self.filter.append(ret['filter'][0,0])
           self.local_level.append(ret['m'][0,0])
+          self.amplitudes.append(ret['amplitudes'])
           self.innovation.append(ret['innovation'][0,0])
           self.obs_var.append(ret['obs_var'][0,0])
           self.alpha.append(ret['alpha'])
@@ -106,7 +118,7 @@ def set_up_local_discount_filter(init_val, omega, df, alpha, beta, J=2, my_EKF=F
 
 # DLM parent class
 class DLM:
-     def __init__(self, m, C, G, F, W, V):
+     def __init__(self, m, C, G, F, W, V, state_kind=None):
 
           # State
           self.m = check_shape(m)
@@ -125,12 +137,16 @@ class DLM:
 
           # Observation covariance
           self.V = check_square(V)
+
+          # List of state variable type by index, e.g. ['Polynomial', 'Trigonometric', 'Trigonometric']
+          if state_kind is not None: self.state_kind = state_kind
+          else: self.state_kind = ['Default' for __ in self.m.shape[0]]
      
      def copy(self):
-          return DLM(self.m, self.C, self.G, self.F, self.W, self.V)
+          return DLM(self.m, self.C, self.G, self.F, self.W, self.V, self.state_kind)
 
      def to_discount(self, df, alpha, beta):
-          return DLMDiscount(self.m, self.C, self.G, self.F, df, alpha, beta)
+          return DLMDiscount(self.m, self.C, self.G, self.F, df, alpha, beta, self.state_kind)
 
      def add_model(self, M):
 
@@ -151,6 +167,9 @@ class DLM:
 
           # Observation covariance
           self.V = self.V + M.V
+
+          # Add to state kind list
+          self.state_kind = self.state_kind + M.state_kind
 
      def set_inits(self, results):
           self.m = results.m
@@ -192,6 +211,9 @@ class DLM:
           C_analysis = np.dot((np.identity(self.C.shape[0]) - np.dot(K, self.F)), self.C)
           ret = {'m': m_analysis, 'C': C_analysis}
 
+          # Add amplitude of periodic components
+          ret['amplitudes'] = self.get_amplitude(m_analysis)
+
           # Optional returns
           ret['forecast'] = f
           ret['filter'] = np.dot(self.F, m_analysis)
@@ -208,6 +230,21 @@ class DLM:
 
           return K
      
+     # Get amplitude of trigonometric components
+     def get_amplitude(self, m):
+
+          m_flat = m.flatten()
+
+          A_list = []
+          for i in range(len(self.state_kind)):
+               kind = self.state_kind[i]
+               if 'Harmonic' in kind:
+                    j = self.state_kind.index('Conjugate ' + kind.split()[-1])
+                    A = np.sqrt(m_flat[i] ** 2 + m_flat[j] ** 2)
+                    A_list.append(A)
+          
+          return A_list
+
      # Print attributes
      def print_model(self):
           text_G = '\nForecast Matrix G = \n'
@@ -220,28 +257,30 @@ class DLM:
 class DLMPoly(DLM):
      def __init__(self, m, C, W_list, V):
           G, F, W, V = poly_mats(W_list, V)
-          super().__init__(m, C, G, F, W, V)
+          kind_list = poly_kind(len(m.flatten()))
+          super().__init__(m, C, G, F, W, V, kind_list)
 
 # Periodic model
 class DLMTrig(DLM):
      def __init__(self, init_var, omega, q, trig_var, V):
           G, F, W, V = trig_mats(omega, q, trig_var, V)
           m, C = trig_inits(q, init_var)
-          super().__init__(m, C, G, F, W, V)
+          kind_list = trig_kind(q)
+          super().__init__(m, C, G, F, W, V, kind_list)
 
 # Discount model
 class DLMDiscount(DLM):
-     def __init__(self, m, C, G, F, df, alpha, beta, my_EKF=False):
+     def __init__(self, m, C, G, F, df, alpha, beta, state_kind=None, my_EKF=False):
           W = np.identity(C.shape[0])
           V = np.array([[1]])
-          super().__init__(m, C, G, F, W, V)
+          super().__init__(m, C, G, F, W, V, state_kind=state_kind)
           self.df = df
           self.alpha = alpha
           self.beta = beta
           self.my_EKF = my_EKF
      
      def copy(self):
-          return DLMDiscount(self.m, self.C, self.G, self.F, self.df, self.alpha, self.beta, self.my_EKF)
+          return DLMDiscount(self.m, self.C, self.G, self.F, self.df, self.alpha, self.beta, self.state_kind, self.my_EKF)
 
      def filter(self, z, return_results=False, forgetful=False, memory=100):
 
@@ -294,6 +333,9 @@ class DLMDiscount(DLM):
                alpha_analysis = self.alpha + 0.5
                beta_analysis = self.beta + 0.5 * np.dot(np.transpose(innovation), np.dot(Q_inv, innovation))
           ret = {'m': m_analysis, 'C': C_analysis, 'alpha': alpha_analysis, 'beta': beta_analysis[0,0]}
+
+          # Add amplitude of periodic components
+          ret['amplitudes'] = self.get_amplitude(m_analysis)
 
           # Optional returns
           ret['forecast'] = f

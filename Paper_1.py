@@ -7,6 +7,7 @@ measure.
 '''
 
 # Libraries
+from random import sample
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -19,7 +20,7 @@ from Utilities import load_data, load_data_other_runs
 # List of standard models
 def get_models():
 
-     ModelVel = set_up_local_discount_filter(0, omega=0.2618, df=0.75, alpha=2, beta=0.0001**2, J=3)
+     ModelVel = set_up_local_discount_filter(0, omega=0.2618, df=0.65, alpha=2, beta=0.0001**2, J=3)
      ModelW2B0 = set_up_drift_discount_filter(0.1, omega=0.5466, df=0.75, alpha=2, beta=0.0001**2, J=3, my_EKF=True)
      ModelW2B1 = set_up_drift_discount_filter(0.1, omega=0.5466, df=0.75, alpha=2, beta=0.0001**2, J=3, my_EKF=True)
      ModelPerc = set_up_drift_discount_filter(0.1, omega=0.5466, df=0.85, alpha=2, beta=0.0001**2, J=3)
@@ -183,64 +184,114 @@ def plot_med_vels(results_list, eps_range, data_labels, colors):
      if N > 1: ax.legend()
      plt.show()
 
-# Get stick samples
-def run_stick_sample(sample_ranges):
+# Plot samples for a given measure
+def run_sample(measure, data_label, sample_ranges, single_plot=False):
 
      #Load data
-     W2 = load_data('w2_b0')
-     Vel = load_data('xvelocity')
-     Data = [Vel, W2]
-     data_labels = ['X Wall Velocity', 'W2']
-     colors = ['gray', 'steelblue']
-
+     Data = load_data(measure)
+     
      # Plot
-     fig, axs = plt.subplots(len(sample_ranges), len(Data))
-     for j in range(len(sample_ranges)):
-          (init, final) = sample_ranges[j]
-          for i in range(len(Data)):
-               axs[j,i].plot(range(init, final), Data[i][init:final], c=colors[i])
-               axs[j,i].set_ylabel(data_labels[i])
-               axs[j,i].set_title(data_labels[i] + ' Sample ' + str(j+1))
-
-     fig.tight_layout()
-     plt.show()
+     if single_plot:
+          fig, axs = plt.subplots(len(sample_ranges), 1)
+          for j in range(len(sample_ranges)):
+               (init, final) = sample_ranges[j]
+               ax = axs[j]
+               ax.plot(range(init, final), Data[init:final], c='gray')
+               ax.set_ylabel(data_label)
+               ax.set_title('%s Sample %i' %(data_label, j+1))
+               ax.ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
+          fig.tight_layout()
+          plt.show()
+     else:
+          for j in range(len(sample_ranges)):
+               fig, ax = plt.subplots(figsize=(7, 5))
+               (init, final) = sample_ranges[j]
+               ax.plot(range(init, final), Data[init:final], c='gray')
+               ax.set_ylabel(data_label)
+               ax.set_title('%s Sample %i' %(data_label, j+1))
+               ax.ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
+               plt.show()
 
 # Run model diagnostics for Velocity and W2B0
-def run_Vel_and_W2_diagnostics(print_vel=True, print_W2=True):
+def run_Vel_diagnostics(ranges, windows, print_vel=True, vel_plot=True):
+
+     Vel = load_data('xvelocity')
+     
      models = get_models()
-     ModelVel, ModelW2 = models[0], models[1]
-     ranges = [(9150, 9550), (19425, 19825), (30400, 30700)]
-     windows = [(9300, 9400), (19500, 19600), (30500, 30600)]
+     ModelVel = models[0]
+     
      samples = []
      for i in range(3):
           print('\nRunning sample (%i, %i)' %windows[i])
           if print_vel: print('\nVelocity:')
           sample_vel = run_diagnostic('xvelocity', ModelVel, 'X Wall Velocity', range=ranges[i], window=windows[i], show_plot=False, show_diagnostic_plots=False, verbose=print_vel)
+          samples.append(sample_vel)
+     
+     if vel_plot:
+          fig, axs = plt.subplots(len(windows), 2)
+          for i in range(len(windows)):
+               (init, final) = windows[i]
+               axs[i,0].plot(range(init, final), Vel[init:final], c='gray')
+               axs[i,0].set_ylabel('Velocity')
+               axs[i,0].set_title('Velocity Sample %i' %(i+1))
+               axs[i,0].ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
+               
+               error_plot(axs[i,1], samples[i], init, final, c='gray')
+               axs[i,1].set_title('Sample %i Error' %(i+1))
+               axs[i,1].ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
+          fig.tight_layout()
+          plt.show()
+
+def run_W2_diagnostics(ranges, windows, print_W2=True, W2_plot=True):
+     
+     W2 = load_data('w2_b0')
+
+     models = get_models()
+     ModelW2 = models[1]
+     
+     samples = []
+     for i in range(3):
+          print('\nRunning sample (%i, %i)' %windows[i])
           if print_W2: print('\nW2:')
           sample_W2 = run_diagnostic('w2_b0', ModelW2, 'W2', range=ranges[i], window=windows[i], show_plot=False, show_diagnostic_plots=False, verbose=print_W2)
-          samples.append([sample_vel, sample_W2])
-     fig, axs = plt.subplots(3, 2)
-     data_labels = ['Velocity', 'W2']
-     for j in [0, 1]:
-          for i in range(3):
-               ax = axs[i,j]
-               error_plot(axs[i,j], samples[i][j], windows[i][0], windows[i][1])
-               axs[i,j].set_title('%s Error Sample %i' %(data_labels[j], i+1))
-     fig.tight_layout()
-     plt.show()
+          samples.append(sample_W2)
+     
+     if W2_plot:
+          fig, axs = plt.subplots(len(windows), 2)
+          for i in range(len(windows)):
+               (init, final) = windows[i]
+               axs[i,0].plot(range(init, final), W2[init:final], c='steelblue')
+               axs[i,0].set_ylabel('W2B0')
+               axs[i,0].set_title('W2B0 Sample %i' %(i+1))
+               axs[i,0].ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
+               
+               error_plot(axs[i,1], samples[i], init, final)
+               axs[i,1].set_title('Sample %i Error' %(i+1))
+               axs[i,1].ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
+          fig.tight_layout()
+          plt.show()
 
-# Run threshold variation for Velocity and W2B0
-def run_Vel_and_W2_var():
+# Run threshold variation for Velocity
+def run_Vel_var(threshold_detect=1.5):
      models = get_models()
-     ModelVel, ModelW2 = models[0], models[1]
-     vel_times = get_vel_times(models[0])
+     ModelVel = models[0]
+     vel_times = get_vel_times(models[0], threshold_detect=threshold_detect)
      eps_range = np.linspace(0, 5, 25)
-     results_vel, results_W2 = run_results(eps_range, 'xvelocity', ModelVel, vel_times, verbose=False), run_results(eps_range, 'w2_b0', ModelW2, vel_times)
+     results_vel = run_results(eps_range, 'xvelocity', ModelVel, vel_times, verbose=True)
      plot_slip_counts([results_vel], eps_range, ['Velocity'], ['darkblue'])
      plot_med_vels([results_vel], eps_range, ['Velocity'], ['darkblue'])
+
+# Run threshold variation for Velocity and W2B0, comparison plots
+def run_W2_var(threshold_detect=1.5):
+     models = get_models()
+     ModelVel, ModelW2 = models[0], models[1]
+     vel_times = get_vel_times(models[0], threshold_detect=threshold_detect)
+     eps_range = np.linspace(0, 5, 25)
+     results_vel, results_W2 = run_results(eps_range, 'xvelocity', ModelVel, vel_times, verbose=False), run_results(eps_range, 'w2_b0', ModelW2, vel_times)
      plot_slip_counts([results_vel, results_W2], eps_range, ['Velocity', 'W2'], ['darkblue', 'steelblue'])
      plot_med_vels([results_vel, results_W2], eps_range, ['Velocity', 'W2'], ['darkblue', 'steelblue'])
      plot_ROC([results_W2], ['W2'], [(0.4, 5.1)], linewidth=4)
+     
 
 # Run fixed analysis for Velocity and W2B0
 def run_Vel_fixed(threshold_detect=1.5, threshold_start=0.001):
@@ -337,17 +388,23 @@ def run_threshold_var_all(eps_range=np.linspace(0, 5, 25)):
 if __name__ == "__main__":
      
      # Get stick samples
-     #run_stick_sample([(9150, 9550), (19425, 19825), (30400, 30700)])
+     #run_sample(measure='xvelocity', data_label='Velocity', sample_ranges=[(0, 10000)])
+     sample_ranges = [(600, 1000), (5850, 6250), (9150, 9550)]
+     #run_sample(measure='xvelocity', data_label='Velocity', sample_ranges=sample_ranges, single_plot=True)
+     #run_sample(measure='w2_b0', data_label='W2B0', sample_ranges=sample_ranges, single_plot=True)
      
      # Run model diagnostics for Velocity and W2B0
-     #run_Vel_and_W2_diagnostics()
+     stick_windows = [(775, 850), (6125, 6200), (9300, 9375)]
+     run_Vel_diagnostics(ranges=sample_ranges, windows=stick_windows)
+     run_W2_diagnostics(ranges=sample_ranges, windows=stick_windows)
 
      # Run threshold variation for Velocity and W2B0
+     #run_Vel_var()
      #run_Vel_and_W2_var()
 
      # Run fixed analysis for Velocity and W2B0
      #run_Vel_fixed()
-     run_W2_fixed()
+     #run_W2_fixed()
 
      # Run threshold variation for other measures
      #run_threshold_var_all()

@@ -36,9 +36,9 @@ def filter_plot(ax, point_est, Data, init, final, data_label, kind='filter'):
      ax.set_title('Filtered Est. of %s' %data_label)
 
 # Plot filter error
-def error_plot(ax, error, init, final, standardized=True):
+def error_plot(ax, error, init, final, standardized=True, **kwargs):
      ax.axhline(y=0, c='gray')
-     ax.plot(range(init, final), error, c='steelblue')
+     ax.plot(range(init, final), error, **kwargs)
      ax.set_ylabel('Error')
      title = 'Filter Error'
      if standardized: title = title + ' (Standardized)'
