@@ -172,6 +172,19 @@ def print_measures_from_times(TimesW2, TimesLabels, cut_off=100, pad=25):
      print('\nTotal True Positive Rate: %2.3f percent' %(100 * (1 - f_n_dict['Total'])))
      print('Total False Positive Rate: %2.3f percent' %(100 * f_p))
 
+def split_times_by_match(TimesW2, TimesLabels, pad=25):
+     
+     # Match W2 times to slip beginnings
+     matched_W2_times_to_labels, __ = match_times(TimesW2, TimesLabels, pad=pad)
+
+     # Get times to next matched slip beginning
+     diffs_to_labels = matched_W2_times_to_labels - TimesW2
+
+     # Get indices of matched and unmatched W2 times
+     ind_label_matched, ind_label_unmatched = get_indices_matched(diffs_to_labels, matched_W2_times_to_labels)
+
+     return TimesW2[ind_label_matched], TimesW2[ind_label_unmatched]
+
 def get_all_measures_from_times(TimesW2, TimesLabels, cut_off=100, pad=25):
 
      # Match W2 times to slip beginnings
