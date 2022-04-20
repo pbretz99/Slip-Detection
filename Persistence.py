@@ -23,6 +23,12 @@ class EpsNode:
           return [self.t, self.level]
 
 def initialize_graph(times_list, levels, R, verbose=False):
+     '''
+     Note: make this smarter; add nodes in a quick manner when R increases
+     :param times_list: list of lists of times over varying levels, length N
+     :param levels: array of levels corresponding to entries in times_list, length N
+     :param R: radius of intervals for intersection
+     '''
      step = levels[1] - levels[0]
      tol = 0.01 * step
      nodes = []
@@ -57,7 +63,6 @@ def plot_component(component, levels, data):
      fig.tight_layout()
      plt.show()
 
-
 def nodes_to_points(nodes):
      t, eps = [], []
      for node in nodes:
@@ -68,6 +73,10 @@ def nodes_to_points(nodes):
 def plot_sample(ax, data, window, **kwargs):
      init, final = window
      ax.plot(range(init, final), data[init:final], **kwargs)
+
+def get_ranges(nodes):
+     t, eps = nodes_to_points(nodes)
+     return [np.min(t), np.max(t)], [np.min(eps), np.max(eps)]
 
 Vel = load_data('xvelocity')
 err = np.load('vel_err.npy')[0:10000]
