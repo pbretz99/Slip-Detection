@@ -1,6 +1,5 @@
 
 # Libraries
-from turtle import left
 import numpy as np
 from matplotlib import pyplot as plt
 
