@@ -1,6 +1,5 @@
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 def threshold(arr, t):
      mask = (arr > t)
