@@ -1,13 +1,3 @@
 
-import numpy as np
-
-def threshold(arr, t):
-     mask = (arr > t)
-     ind_arr = np.indices(arr.shape)
-     return arr[mask], np.transpose(ind_arr[:,mask])
-
-arr = np.arange(6).reshape((2, 3))
-vals, indices = threshold(arr, 3)
-print(arr)
-print(vals)
-print(indices)
+for val in [-3, 200, 1000, 2001]:
+     print((val // 1000) * 1000)

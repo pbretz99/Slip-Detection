@@ -52,6 +52,58 @@ def initialize_graph(times_list, levels, R, verbose=False):
           count += 1
      return G
 
+def initialize_graph_bucketed(buckets_list, levels, R, verbose=False):
+     nodes, node_bucket_list = construct_nodes_from_buckets(buckets_list, levels, verbose=verbose)
+     edges = construct_edges_from_buckets(node_bucket_list, R, verbose=verbose)
+     G = nx.Graph()
+     G.add_nodes_from(nodes)
+     G.add_edges_from(edges)
+     return G
+
+# Return list of all nodes and nodes in bucket structure
+def construct_nodes_from_buckets(buckets_list, levels, verbose=False):
+     nodes = []
+     node_buckets_list = []
+     if verbose: print('Constructing nodes:')
+     for i in range(len(buckets_list)):
+          if verbose: print_tracker(i, len(buckets_list))
+          current_level_node_buckets = []
+          for bucket in buckets_list[i]:
+               current_node_bucket = []
+               for t in bucket:
+                    current_node = EpsNode(levels[i], t)
+                    nodes.append(current_node)
+                    current_node_bucket.append(current_node)
+               current_level_node_buckets.append(current_node_bucket)
+          node_buckets_list.append(current_level_node_buckets)
+     return nodes, node_buckets_list
+
+def construct_edges_from_buckets(node_buckets_list, R, verbose=False):
+     edges = []
+     if verbose: print('Constructing edges:')
+     for level in range(1, len(node_buckets_list)):
+          if verbose: print_tracker(level, len(node_buckets_list))
+          prev_buckets, current_buckets = node_buckets_list[level-1], node_buckets_list[level]
+          N1, N2 = len(prev_buckets), len(current_buckets)
+          # First pass: prev <-> current
+          for b in range(min(N1, N2)):
+               edges = edges + edges_between_nodes(prev_buckets[b], current_buckets[b], R)
+          # Second pass: prev-1 <-> current
+          for b in range(1, min(N1+1,N2)):
+               edges = edges + edges_between_nodes(prev_buckets[b-1], current_buckets[b], R)
+          # Third pass: prev <-> current-1
+          for b in range(1, min(N1,N2+1)):
+               edges = edges + edges_between_nodes(prev_buckets[b], current_buckets[b-1], R)
+     return edges
+
+def edges_between_nodes(nodes_1, nodes_2, R):
+     edges = []
+     for node_1 in nodes_1:
+          for node_2 in nodes_2:
+               if abs(node_1.t - node_2.t) <= R:
+                    edges.append((node_1, node_2))
+     return edges
+
 def plot_component(component, levels, data, data_label):
      
      t, eps = nodes_to_points(component)
@@ -89,15 +141,18 @@ def get_ranges(nodes):
      t, eps = nodes_to_points(nodes)
      return [np.min(t), np.max(t)], [np.min(eps), np.max(eps)]
 
-def print_components(components):
+def print_components(components, min_lifespan=None):
+     if min_lifespan is None:
+          min_lifespan = -1
      text = ''
      for component in components:
           t_range, eps_range = get_ranges(component)
-          text += f'\nTime Interval ({t_range[0]}, {t_range[1]}); Lifespan {round(eps_range[1]-eps_range[0], 2)}; Epsilon Interval ({round(eps_range[0], 2)}, {round(eps_range[1], 2)})'
+          if eps_range[1] - eps_range[0] > min_lifespan:
+               text += f'\nTime Interval ({t_range[0]}, {t_range[1]}); Lifespan {round(eps_range[1]-eps_range[0], 2)}; Epsilon Interval ({round(eps_range[0], 2)}, {round(eps_range[1], 2)})'
      print(text)
      return text
 
-def get_components(err, eps_range, R, verbose=True):
+def get_components(err, eps_range, R, verbose=True, bucketed=False):
      
      # Get detection times at epsilon levels
      if verbose: print('Extracting Detections:')
@@ -105,14 +160,20 @@ def get_components(err, eps_range, R, verbose=True):
      for i in range(len(eps_range)):
           if verbose: print_tracker(i, len(eps_range))
           times, __ = get_times_from_error(err, 1, eps_range[i], window_size=100)
-          times_array.append(times.tolist())
+          times = times.tolist()
+          if bucketed:
+               times = bucket_times(times, start=0)
+          times_array.append(times)
      
      # Create graph
-     G = initialize_graph(times_array, eps_range, R, verbose=verbose)
+     if bucketed:
+          G = initialize_graph_bucketed(times_array, eps_range, R, verbose=verbose)
+     else:
+          G = initialize_graph(times_array, eps_range, R, verbose=verbose)
      
      # Get components in a list, sorted by smallest detection time
      def key_func(component):
-          t_range, eps_range = get_ranges(component)
+          t_range, __ = get_ranges(component)
           return t_range[0]
      components = sorted(nx.connected_components(G), key=key_func)
      if verbose: print(f'\nThere are {len(components)} connected components at R = {R}\n')
@@ -150,17 +211,41 @@ def split_by_overlap(components_1, components_2, extend=0):
                not_overlapping_2.append(component)
      return overlapping_1, overlapping_2, not_overlapping_1, not_overlapping_2
 
+# Note: times must be ordered
+def bucket_times(times, bucket_size=1000, empty_buckets=True, start=None):
+     buckets = []
+     current_bucket = []
+     if start is None:
+          init = (times[0] // bucket_size) * bucket_size
+     else:
+          init = start
+     for t in times:
+          if t < init + bucket_size:
+               current_bucket.append(t)
+          else:
+               buckets.append(current_bucket)
+               new_init = (t // bucket_size) * bucket_size
+               if empty_buckets:
+                    count = (new_init - init) // bucket_size - 1
+                    for __ in range(count):
+                         buckets.append([])
+               current_bucket = [t]
+               init = new_init
+     buckets.append(current_bucket)
+     return buckets
+
 if __name__ == '__main__':
 
      Vel = load_data('xvelocity')
      W2 = load_data('w2_b0')
-     init, final = [0, 5000]
+     init, final = [0, len(Vel)]
      vel_err = np.load('vel_err.npy')[init:final]
      w2_b0_err = np.load('w2_b0_err.npy')[init:final]
      eps_range = np.linspace(0, 2.5, 251)
 
-     vel_components = get_components(vel_err, eps_range, 50)
-     w2_components = get_components(w2_b0_err, eps_range, 50)
+     vel_components = get_components(vel_err, eps_range, 50, bucketed=True)
+     w2_components = get_components(w2_b0_err, eps_range, 50, bucketed=True)
+     
      vel_overlap, w2_overlap, vel_distinct, w2_distinct = split_by_overlap(vel_components, w2_components, extend=25)
      print(f'\n{len(vel_components)} Velocity Detections, {len(vel_components)-len(vel_distinct)} Matched, and {len(vel_distinct)} Distinct')
      print('\nDistinct Components:')
@@ -168,4 +253,10 @@ if __name__ == '__main__':
      print(f'\n{len(w2_components)} W2B0 Detections, {len(w2_components)-len(w2_distinct)} Matched, and {len(w2_distinct)} Distinct')
      print('\nDistinct Components:')
      print_components(w2_distinct)
-     
+
+     print(f'\n{len(vel_components)} Velocity Detections, {len(vel_components)-len(vel_distinct)} Matched, and {len(vel_distinct)} Distinct')
+     print('\nDistinct Components:')
+     print_components(vel_distinct, min_lifespan=0.5)
+     print(f'\n{len(w2_components)} W2B0 Detections, {len(w2_components)-len(w2_distinct)} Matched, and {len(w2_distinct)} Distinct')
+     print('\nDistinct Components:')
+     print_components(w2_distinct, min_lifespan=0.5)
