@@ -180,12 +180,22 @@ def get_components(err, eps_range, R, verbose=True, bucketed=False):
      
      return components
 
-def time_ranges(components, extend=0):
+def time_ranges(components, extend=0, single_points=False):
      intervals = []
      for component in components:
-          init, final = get_ranges(component)[0]
+          if single_points:
+               init, final = component, component
+          else:
+               init, final = get_ranges(component)[0]
           intervals.append([init-extend, final+extend])
      return intervals
+
+def lifespans(components):
+     eps_span = []
+     for component in components:
+          init, final = get_ranges(component)[1]
+          eps_span.append([final-init])
+     return eps_span
 
 def overlapping(interval_1, interval_2):
      for first, second in [[interval_1, interval_2], [interval_2, interval_1]]:
@@ -194,8 +204,8 @@ def overlapping(interval_1, interval_2):
                     return True
      return False
 
-def split_by_overlap(components_1, components_2, extend=0):
-     time_intervals_1, time_intervals_2 = time_ranges(components_1, extend=extend), time_ranges(components_2, extend=extend)
+def split_by_overlap(components_1, components_2, extend=0, single_points=False):
+     time_intervals_1, time_intervals_2 = time_ranges(components_1, extend=extend), time_ranges(components_2, extend=extend, single_points=single_points)
      overlapping_1, overlapping_2 = [], []
      for i in range(len(time_intervals_1)):
           for j in range(len(time_intervals_2)):
@@ -209,7 +219,7 @@ def split_by_overlap(components_1, components_2, extend=0):
      for component in components_2:
           if component not in overlapping_2:
                not_overlapping_2.append(component)
-     return overlapping_1, overlapping_2, not_overlapping_1, not_overlapping_2
+     return [overlapping_1, overlapping_2], [not_overlapping_1, not_overlapping_2]
 
 # Note: times must be ordered
 def bucket_times(times, bucket_size=1000, empty_buckets=True, start=None):
@@ -244,8 +254,38 @@ if __name__ == '__main__':
      eps_range = np.linspace(0, 2.5, 251)
 
      vel_components = get_components(vel_err, eps_range, 50, bucketed=True)
-     w2_components = get_components(w2_b0_err, eps_range, 50, bucketed=True)
      
+     vel_time_ranges = time_ranges(vel_components)
+     vel_lifespans = lifespans(vel_components)
+     lifespans = []
+     max_vals = []
+     for i in range(1, len(vel_time_ranges)):
+          start = vel_time_ranges[i-1][0]
+          end = vel_time_ranges[i][0]
+          if end > start:
+               M = np.max(Vel[start:end])
+               if M > 0:
+                    max_vals.append(M)
+                    lifespans.append(vel_lifespans[i-1])
+          else:
+               print(f'Bad! Times 1 = ({vel_time_ranges[i-1][0]}, {vel_time_ranges[i-1][1]}), Times 2 = ({vel_time_ranges[i][0]}, {vel_time_ranges[i][1]})')
+     
+     fig, ax = plt.subplots()
+     ax.scatter(lifespans, max_vals)
+     ax.set_ylabel('Max. Velocity for Event')
+     ax.set_xlabel('$\epsilon$-Lifespan')
+     plt.show()
+
+     fig, ax = plt.subplots()
+     ax.scatter(lifespans, np.log(max_vals))
+     ax.set_ylabel('Max. Velocity for Event (log scale)')
+     ax.set_xlabel('$\epsilon$-Lifespan')
+     plt.show()
+
+
+     '''
+     w2_components = get_components(w2_b0_err, eps_range, 50, bucketed=True)
+
      vel_overlap, w2_overlap, vel_distinct, w2_distinct = split_by_overlap(vel_components, w2_components, extend=25)
      print(f'\n{len(vel_components)} Velocity Detections, {len(vel_components)-len(vel_distinct)} Matched, and {len(vel_distinct)} Distinct')
      print('\nDistinct Vel Components:')
@@ -257,4 +297,4 @@ if __name__ == '__main__':
      print('\nDistinct Vel Components (lifespan > 0.5):')
      print_components(vel_distinct, min_lifespan=0.5)
      print('\nDistinct W2 Components (lifespan > 0.5):')
-     print_components(w2_distinct, min_lifespan=0.5)
+     print_components(w2_distinct, min_lifespan=0.5)'''

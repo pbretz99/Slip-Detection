@@ -121,16 +121,16 @@ plot_samples([250, 625, 1000])
 #err = np.load('w2_b0_err.npy')
 eps_final = 2.5
 eps_range = np.linspace(0, eps_final, round(eps_final * 100) + 1)
-init, final = 0, len(err)
+init, final = 0, 2000
 times_array = []
 for eps in eps_range:
      print(eps)
-     times, __ = get_times_from_error(err[init:final], 1, eps, window_size=100)
+     times, __ = get_times_from_error(err[init:final], 1, eps, window_size=100, burn_in=50)
      times_array.append(times.tolist())
 
 
 
-'''
+
 all_times = []
 all_eps = []
 for i in range(len(times_array)):
@@ -138,13 +138,14 @@ for i in range(len(times_array)):
      all_times += times_array[i]
 
 fig, ax = plt.subplots()
-ax.scatter(all_eps, all_times, s=1)
-ax.set_ylim(init, final)
-ax.set_xlabel('Threshold $\epsilon$')
-ax.set_ylabel('Time')
+ax.scatter(all_times, all_eps, s=1)
+ax.set_xlim(init, final)
+ax.set_ylabel('Threshold $\epsilon$')
+ax.set_xlabel('Time')
 ax.set_title('Detection Times by Threshold')
-plt.show()'''
+plt.show()
 
+'''
 persistence_pairs = persistence(times_array, eps_range, pad=50, verbose=True)
 print(f'\nRefinement: {eps_range[1]-eps_range[0]}\nCount of pairs: {len(persistence_pairs)}')
 
@@ -159,5 +160,5 @@ for eps in [None, 0.4, 2]:
      if eps is not None:
           highlight_threshold(ax, eps, eps_range, edgecolor='darkgreen', facecolor='green', alpha=0.2)
      ax.set_title('Persistence of Velocity Detections under $\epsilon$ Variation')
-     plt.show()
+     plt.show()'''
 
