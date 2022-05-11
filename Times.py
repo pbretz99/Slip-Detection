@@ -160,7 +160,7 @@ def print_measures_from_times(TimesW2, TimesLabels, cut_off=100, pad=25):
      f_n_dict, f_p, advance_dict, counts_dict = get_all_measures_from_times(TimesW2, TimesLabels, cut_off=cut_off, pad=pad)
 
      print('Missed Rate: %2.3f percent, Total Missed: %i out of %i' %(f_n_dict['Missed'] * 100, counts_dict['Missed'], counts_dict['Labels']))
-     print('False Positive Rate: %2.3f percent, Total Extra: %i out of %i' %(f_p * 100, counts_dict['W2'] - counts_dict['Matched'], counts_dict['W2']))
+     print('False Positive Rate: %2.3f percent, Total Extra: %i out of %i' %(f_p * 100, counts_dict['Detections'] - counts_dict['Matched'], counts_dict['Detections']))
 
      # Advance notice stats
      print('%2.3f percent of matched times not in advance; %i detections not in advance' %(100 * f_n_dict['Just Missed'], counts_dict['Just Missed']))
@@ -234,7 +234,7 @@ def get_all_measures_from_times(TimesW2, TimesLabels, cut_off=100, pad=25):
      f_n_dict = {'Missed': f_n_missed, 'Past Cutoff': f_n_cutoff, 'Just Missed': f_n_just_missed, 'Total': f_n_total}
      
      advance_dict = {'Mean': ave, 'Median': med, 'Min': min}
-     counts_dict = {'Labels': N_slips, 'W2': N_times, 'Matched': N_matched, 'Missed': N_missed, 'Just Missed': N_just_missed, 'Past Cutoff': N_past_cutoff, 'Diffs': vals}
+     counts_dict = {'Labels': N_slips, 'Detections': N_times, 'Matched': N_matched, 'Missed': N_missed, 'Just Missed': N_just_missed, 'Past Cutoff': N_past_cutoff, 'Diffs': vals}
      
      return f_n_dict, f_p, advance_dict, counts_dict
 

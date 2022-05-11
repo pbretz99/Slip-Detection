@@ -30,10 +30,11 @@ def filter_plot(ax, point_est, Data, init, final, data_label, kind='filter'):
           print('Invalid kind. Valid kinds are filter and forecast.')
           return 0
      ax.plot(range(init, final), Data[init:final], c='gray', alpha=0.75, label=data_label)
-     ax.plot(range(init, final), point_est, c='steelblue', label=kind_label)
+     ax.plot(range(init, final), point_est, c='steelblue', ls='--', label=kind_label)
+     ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
      ax.legend()
      ax.set_ylabel(data_label)
-     ax.set_title('Filtered Est. of %s' %data_label)
+     ax.set_title(f'{kind_label} Est. for {data_label}')
 
 # Plot filter error
 def error_plot(ax, error, init, final, standardized=True, **kwargs):

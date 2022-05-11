@@ -6,7 +6,7 @@ from Times import get_times_from_error
 
 from Utilities import load_data
 
-def plot_sample_thresh_vel(eps_1, eps_2, window):
+def plot_sample_thresh_vel(eps_1, eps_2, window, add_times=True):
      
      init, final = window
      Vel = load_data('xvelocity')
@@ -25,17 +25,18 @@ def plot_sample_thresh_vel(eps_1, eps_2, window):
      
      ax = axs[1]
      ax.plot(range(init, final), vel_err[init:final], c='gray')
-     ax.set_ylabel('Error')
-     ax.set_title('Model Error')
+     ax.set_ylabel('Normalized Error')
+     ax.set_title('Normalized Model Error')
 
-     for ax in axs:
-          add_times_to_plot(ax, init, final, times_1, c='red', ls='--')
-          add_times_to_plot(ax, init, final, times_2, c='orange', ls='--')
+     if add_times:
+          for ax in axs:
+               add_times_to_plot(ax, init, final, times_1, c='red', ls='--')
+               add_times_to_plot(ax, init, final, times_2, c='orange', ls='--')
 
      fig.tight_layout()
      plt.show()
 
-def plot_sample_thresh_W2(eps, window):
+def plot_sample_thresh_W2(eps, window, add_times=True):
      
      init, final = window
      W2 = load_data('w2_b0')
@@ -50,13 +51,30 @@ def plot_sample_thresh_W2(eps, window):
      
      ax = axs[1]
      ax.plot(range(init, final), W2_err[init:final], c='gray')
-     ax.set_ylabel('Error')
-     ax.set_title('Model Error')
+     ax.set_ylabel('Normalized Error')
+     ax.set_title('Normalized Model Error')
 
-     for ax in axs:
-          add_times_to_plot(ax, init, final, times, c='red', ls='--', alpha=0.5)
+     if add_times:
+          for ax in axs:
+               add_times_to_plot(ax, init, final, times, c='red', ls='--', alpha=0.5)
+     
      fig.tight_layout()
      plt.show()
 
-#plot_sample_thresh_vel(0.2, 1.5, (500, 1250))
-plot_sample_thresh_W2(0.4, (500, 1250))
+def plot_samples(window):
+
+     init, final = window
+     Vel = load_data('xvelocity')
+     Vel_forecast = np.load('vel_forecast.npy')
+     W2 = load_data('w2_b0')
+     W2_forecast = np.load('w2_b0_forecast.npy')
+     
+     for Data, Data_forecast, Data_label in [[Vel, Vel_forecast, 'Velocity'], [W2, W2_forecast, 'W2B0']]:
+          fig, ax = plt.subplots()
+          filter_plot(ax, Data_forecast[init:final], Data, init, final, Data_label, kind='forecast')
+          plt.show()
+
+plot_sample_thresh_vel(0.2, 1.5, (500, 1050), add_times=False)
+plot_sample_thresh_W2(0.4, (500, 1050), add_times=False)
+for window in []:
+     plot_samples(window)

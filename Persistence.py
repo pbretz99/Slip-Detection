@@ -152,14 +152,14 @@ def print_components(components, min_lifespan=None):
      print(text)
      return text
 
-def get_components(err, eps_range, R, verbose=True, bucketed=False):
+def get_components(err, eps_range, R, window_size=25, verbose=True, bucketed=False):
      
      # Get detection times at epsilon levels
      if verbose: print('Extracting Detections:')
      times_array = []
      for i in range(len(eps_range)):
           if verbose: print_tracker(i, len(eps_range))
-          times, __ = get_times_from_error(err, 1, eps_range[i], window_size=100)
+          times, __ = get_times_from_error(err, 1, eps_range[i], window_size=window_size)
           times = times.tolist()
           if bucketed:
                times = bucket_times(times, start=0)
@@ -283,9 +283,10 @@ if __name__ == '__main__':
      plt.show()
 
 
-     '''
+     
      w2_components = get_components(w2_b0_err, eps_range, 50, bucketed=True)
 
+     # Change unpacking to [overlapping_list, distinct_list]
      vel_overlap, w2_overlap, vel_distinct, w2_distinct = split_by_overlap(vel_components, w2_components, extend=25)
      print(f'\n{len(vel_components)} Velocity Detections, {len(vel_components)-len(vel_distinct)} Matched, and {len(vel_distinct)} Distinct')
      print('\nDistinct Vel Components:')
@@ -297,4 +298,4 @@ if __name__ == '__main__':
      print('\nDistinct Vel Components (lifespan > 0.5):')
      print_components(vel_distinct, min_lifespan=0.5)
      print('\nDistinct W2 Components (lifespan > 0.5):')
-     print_components(w2_distinct, min_lifespan=0.5)'''
+     print_components(w2_distinct, min_lifespan=0.5)

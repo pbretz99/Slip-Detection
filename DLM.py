@@ -291,7 +291,50 @@ class DLMDiscount(DLM):
           ret = self.data_assimilation(z, forgetful, memory)
           self.m, self.C, self.alpha, self.beta = ret['m'], ret['C'], ret['alpha'], ret['beta']
 
-          if return_results: return ret     
+          if return_results: return ret
+     
+     def monte_carlo(self, steps=1, return_forecast=True):
+          
+          def multi_draw(mean, cov):
+               print(mean[0:2])
+               draw = np.random.multivariate_normal(mean, cov)
+               if self.my_EKF:
+                    iter = 0
+                    while draw[0] < 0 or draw[1] > 0:
+                         draw = np.random.multivariate_normal(mean, cov)
+                         iter += 1
+                         if iter > 1000:
+                              print('Error! Cannot draw properly from MVN.')
+                              print(draw[0:2])
+                              return mean
+               return draw
+          
+          def one_step_ahead(current_state, current_cov):
+               G = self.G
+               if self.my_EKF:
+                    G[0,0] = np.exp(current_state[1])
+                    G[0,1] = current_state[0] * np.exp(current_state[1])
+               state_forecast = np.dot(G, current_state)
+               W = ((1 - self.df) / self.df) * np.dot(G, np.dot(current_cov, G.T))
+               state_with_err = multi_draw(state_forecast, W)
+               return state_with_err, W / (1 - self.df)
+          
+          state_array = np.zeros((steps, self.m.shape[0]))
+          forecast_array = np.zeros((steps,))
+
+          state_array[0] = self.m.flatten()
+          forecast_array[0] = np.dot(self.F, state_array[0])
+          prev_cov = self.C
+          for i in range(1, steps):
+               state, prev_cov = one_step_ahead(state_array[i-1], prev_cov)
+               state_array[i] = state
+               forecast_array[i] = np.dot(self.F, state)
+          
+          if return_forecast:
+               return forecast_array
+          
+          else:
+               return state_array
 
      def forecast(self, obs, tol=0.000000001):
 
