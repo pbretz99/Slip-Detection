@@ -58,7 +58,7 @@ def accuracy_measures(slip_start, eps_range, err, verbose=False):
           measures[i] = my_measures(detection, slip_start)
      return measures
 
-def plot_accuracy_measures(ax, measures, eps_range, data_label):
+def plot_accuracy_measures(ax, measures, eps_range, data_label, legend=True):
      measure_labels = ['$f_p$', '$t_p$ (total)', '$t_p$ (partial)']
      measure_colors = ['orange', 'steelblue', 'steelblue']
      measure_ls = ['-', '--', '-']
@@ -66,7 +66,22 @@ def plot_accuracy_measures(ax, measures, eps_range, data_label):
           ax.plot(eps_range, measures[:,i], label=measure_labels[i], c=measure_colors[i], ls=measure_ls[i])
      ax.axhline(y=1, c='lightgray', ls='--')
      ax.set_ylim(bottom=0)
-     ax.legend()
+     if legend:
+          ax.legend()
+     ax.set_xlabel('Error Threshold $\epsilon$')
+     ax.set_ylabel('Rate')
+     ax.set_title(f'Accuracy Measures for {data_label} Detections')
+
+def plot_accuracy_measures2(ax, measures, eps_range, data_label, legend=True):
+     measure_labels = ['$f_p$', '$t_p$']
+     measure_colors = ['orange', 'steelblue']
+     measure_ls = ['-', '-']
+     for i in range(2):
+          ax.plot(eps_range, measures[:,i], label=measure_labels[i], c=measure_colors[i], ls=measure_ls[i])
+     ax.axhline(y=1, c='lightgray', ls='--')
+     ax.set_ylim(bottom=0)
+     if legend:
+          ax.legend()
      ax.set_xlabel('Error Threshold $\epsilon$')
      ax.set_ylabel('Rate')
      ax.set_title(f'Accuracy Measures for {data_label} Detections')
@@ -78,19 +93,22 @@ vel_err = np.load('vel_err.npy')
 w2_err = np.load('w2_b0_err.npy')
 slip_start = times_df['Start'].to_numpy()
 
-vel_times, __ = get_times_from_error(vel_err, 1, 0.2, window_size=100)
-w2_times, __ = get_times_from_error(w2_err, 1, 0.9, window_size=100)
+vel_times, __ = get_times_from_error(vel_err, 1, 0.2, window_size=25)
+w2_times, __ = get_times_from_error(w2_err, 1, 0.9, window_size=25)
 
 print_measures_from_times(w2_times, vel_times)
 
-'''
 eps_range = np.linspace(0.05, 5, 50)
 measures_vel = accuracy_measures(slip_start, eps_range, vel_err, verbose=True)
 measures_W2 = accuracy_measures(slip_start, eps_range, w2_err, verbose=True)
 
+fig, ax = plt.subplots()
+plot_accuracy_measures(ax, measures_vel, eps_range, 'Wall Velocity')
+plt.show()
+
 fig, axs = plt.subplots(2, 1)
 plot_accuracy_measures(axs[0], measures_vel, eps_range, 'Wall Velocity')
-plot_accuracy_measures(axs[1], measures_W2, eps_range, 'W2B0')
+plot_accuracy_measures(axs[1], measures_W2, eps_range, 'W2B0', legend=False)
 fig.tight_layout()
 plt.show()
-'''
+
