@@ -424,6 +424,15 @@ if __name__ == '__main__':
      print(f'\nVelocity breakdown: Large-scale slips count = {len(slip_vel_components)}, Small-scale slips count = {len(microslip_vel_components)}, Total = {len(vel_components)}')
      print(f'\nW2B0 breakdown: Large-scale slips count = {len(slip_w2_components)}, Small-scale slips count = {len(microslip_w2_components)}, Unmatched count = {len(nonslip_w2_components)}, Total = {len(w2_components)}')
      
+     #for components, component_labels in zip([slip_vel_components, microslip_vel_components], ['Large-Scale', 'Small-Scale']):
+     #     print(f'\nList of all Velocity {component_labels} detections:')
+     #     print_components(components)
+     
+     #for components, component_labels in zip([slip_w2_components, microslip_w2_components, nonslip_w2_components], ['Large-Scale', 'Small-Scale', 'Unmatched']):
+     #     print(f'\nList of all W2B0 {component_labels} detections:')
+     #     print_components(components)
+     
+
      for max_vel in [True, False]:
           fig, ax = plt.subplots()
           plot_max_vel(ax, Vel, vel_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5)
