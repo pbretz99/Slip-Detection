@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 import pandas as pd
 
 # Local Code
-from Utilities import load_data, print_tracker
+from Utilities import load_data, print_tracker, unique, not_in, overlapping, extend
 from Times import get_times_from_error
 
 class EpsNode:
@@ -110,28 +110,6 @@ def edges_between_nodes(nodes_1, nodes_2, R):
                     edges.append((node_1, node_2))
      return edges
 
-def plot_component(component, levels, data, data_label):
-     
-     t, eps = nodes_to_points(component)
-     init, final = np.min(t) - 100, np.max(t) + 100
-     fig, axs = plt.subplots(2, 1)
-     
-     axs[0].scatter(t, eps, c='black', s=1)
-     axs[0].set_xlim(init, final)
-     axs[0].set_ylim(np.min(levels), np.max(levels))
-     axs[0].set_title(f'{data_label} Detections by Threshold')
-     axs[0].set_ylabel('Threshold $\epsilon$')
-     axs[0].set_xlabel('t [frames]')
-     
-     plot_sample(axs[1], data, [init, final], c='gray')
-     axs[1].set_title(data_label)
-     axs[1].set_ylabel(data_label)
-     axs[1].ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
-     axs[1].set_xlabel('t [frames]')
-     
-     fig.tight_layout()
-     plt.show()
-
 def nodes_to_points(nodes):
      start, stop, eps = [], [], []
      for node in nodes:
@@ -230,18 +208,6 @@ def pair_times(start, stop):
      start, stop = start[0:N], stop[0:N]
      return np.stack((start, stop), axis=-1)
 
-def extend(interval, R):
-     init, final = interval
-     return [init-R, final+R]
-
-def overlapping(interval_1, interval_2, R=0):
-     interval_1, interval_2 = extend(interval_1, R), extend(interval_2, R)
-     for first, second in [[interval_1, interval_2], [interval_2, interval_1]]:
-          for time in first:
-               if second[0] <= time <= second[1]:
-                    return True
-     return False
-
 def split_by_overlap(components_1, components_2, R=0, single_points=False):
      time_intervals_1, time_intervals_2 = time_ranges(components_1, R=R), time_ranges(components_2, R=R, single_points=single_points)
      overlapping_1, overlapping_2 = [], []
@@ -309,40 +275,54 @@ def bucket_times(times, bucket_size=1000, empty_buckets=True, bucket_start=None)
      buckets.append(current_bucket)
      return buckets
 
-def plot_max_vel(Vel, vel_components, plot_lifespan=True, plot_birth=True, log_scale=False, **kwargs):
+def plot_max_vel(ax, Vel, vel_components, plot_birth=True, plot_max_vel=True, log_scale=False, **kwargs):
+     
+     eps_measures, vel_measures = eps_vel_measures(Vel, vel_components)
+
+     if plot_birth:
+          eps_measure = eps_measures[1]
+          x_label = '$\epsilon_{max}$'
+     else:
+          eps_measure = eps_measures[0]
+          x_label = '$\epsilon$-Lifespan'
+     
+     if plot_max_vel:
+          vel_measure = vel_measures[0]
+          y_label = 'Max. Velocity in Slip'
+     else:
+          vel_measure = vel_measures[1]
+          y_label = 'Slip Size'
+     
+     scatter_eps_vel(ax, eps_measure, vel_measure, x_label, y_label, log_scale=log_scale, **kwargs)
+
+def eps_vel_measures(Vel, vel_components):
      vel_time_ranges = time_ranges(vel_components)
      vel_lifespans = lifespans(vel_components)
      vel_births = eps_birth(vel_components)
      eps_lifespans = []
      eps_births = []
      max_vals = []
-     for i in range(len(vel_time_ranges)):
-          start, end = vel_time_ranges[i]
+     slip_sizes = []
+     for interval, lifespan, birth in zip(vel_time_ranges, vel_lifespans, vel_births):
+          start, end = interval
           if end > start:
-               M = np.max(Vel[start:end])
-               if M > 0:
-                    max_vals.append(M)
-                    eps_lifespans.append(vel_lifespans[i])
-                    eps_births.append(vel_births[i])
+               max_vals.append(np.max(Vel[start:end]))
+               slip_sizes.append(np.sum(Vel[start:end]))
+               eps_lifespans.append(lifespan)
+               eps_births.append(birth)
           else:
-               print(f'Bad! Component time range ({start}, {end}), Lifespan ({vel_lifespans[i]})')
-     
-     def scatter_eps_vel(x_data, y_data, x_label, log_scale=True, **kwargs):
-          y_label = 'Max. Velocity in Slip'
-          if log_scale:
-               y_label += ' (log scale)'
-               y_data = np.log(y_data)
-          fig, ax = plt.subplots()
-          ax.scatter(x_data, y_data, **kwargs)
-          ax.set_ylabel(y_label)
-          ax.set_xlabel(x_label)
-          plt.show()
+               print(f'Bad! Component time range ({start}, {end}), Lifespan ({lifespan})')
+     return [np.array(eps_lifespans), np.array(eps_births)], [np.array(max_vals), np.array(slip_sizes)]
 
-     if plot_lifespan:
-          scatter_eps_vel(eps_lifespans, max_vals, '$\epsilon$-Lifespan', log_scale=log_scale, **kwargs)
-
-     if plot_birth:
-          scatter_eps_vel(eps_births, max_vals, '$\epsilon$-Birth', log_scale=log_scale, **kwargs)
+def scatter_eps_vel(ax, x_data, y_data, x_label, y_label, log_scale=True, **kwargs):
+     mask = np.array([True] * len(x_data))
+     if log_scale:
+          mask = (y_data > 0)
+          y_label += ' (log scale)'
+          y_data = np.log(y_data[mask])
+     ax.scatter(x_data[mask], y_data, **kwargs)
+     ax.set_ylabel(y_label)
+     ax.set_xlabel(x_label)
 
 def plot_sample_bars(Vel, err, init, final, eps_range, window_size=25, verbose=True, plot_vel=True, **kwargs):
      
@@ -395,6 +375,7 @@ def print_overlapping(vel_components, w2_components, R=0, min_lifespan=None, pri
                if len(components) > 0:
                     print(f'\nDistinct {data_label} Components:')
                     print_components(components)
+     return distinct_comp[1]
 
 def print_comparison(components, data_label, R=0, print_distinct=True):
      slip_intervals = pd.read_csv('slip_times.csv', names=['Start', 'End'], dtype=int).to_numpy()[:-1]
@@ -412,7 +393,8 @@ def print_comparison(components, data_label, R=0, print_distinct=True):
                print('Distinct Slip Intervals:')
                for start, stop in distinct_comp[1]:
                     print(f'({start}, {stop})')
-          
+     return overlapping_comp[0]
+
 if __name__ == '__main__':
 
      Vel = load_data('xvelocity')
@@ -425,18 +407,37 @@ if __name__ == '__main__':
      #plot_sample_bars(Vel, vel_err, 0, 2500, np.linspace(0.2, 5, 41), c='steelblue')
      #plot_sample_bars(W2, w2_b0_err, 0, 2500, np.linspace(0.4, 5, 41), c='steelblue')
      
-     vel_components = get_components(vel_err, np.linspace(0.2, 5, 51), R=0)
+     vel_components = get_components(vel_err, np.linspace(0.2, 5, 51), R=0, verbose=True)
      w2_components = get_components(w2_b0_err, np.linspace(0.4, 5, 51), R=0)
 
-     for data_label, components in [['Velocity', vel_components], ['W2B0', w2_components]]:
-          #print(f'\nAll {data_label} Components:')
-          #print_components(components)
-          print_comparison(remove_by_lifespan(components, 0.01), data_label, print_distinct=False)
+     slip_vel_components = unique(print_comparison(vel_components, 'Velocity', print_distinct=False))
+     microslip_vel_components = not_in(vel_components, slip_vel_components)
+     slip_w2_components = unique(print_comparison(w2_components, 'W2B0', print_distinct=False))
 
 
-     print_overlapping(vel_components, w2_components)
-     print_overlapping(vel_components, w2_components, min_lifespan=0.01)
-     print_overlapping(vel_components, remove_by_lifespan(w2_components, 0.01))
+     nonslip_w2_components = print_overlapping(vel_components, w2_components, print_distinct=False)
+     microslip_w2_components = not_in(w2_components, nonslip_w2_components + slip_w2_components)
+     #print_overlapping(vel_components, w2_components, min_lifespan=0.01, print_distinct=False)
+     #print_overlapping(vel_components, remove_by_lifespan(w2_components, 0.01), print_distinct=False)
+
+     large_vel_components = remove_by_lifespan(vel_components, 1.5)
+     print(f'\nVelocity breakdown: Large-scale slips count = {len(slip_vel_components)}, Small-scale slips count = {len(microslip_vel_components)}, Total = {len(vel_components)}')
+     print(f'\nW2B0 breakdown: Large-scale slips count = {len(slip_w2_components)}, Small-scale slips count = {len(microslip_w2_components)}, Unmatched count = {len(nonslip_w2_components)}, Total = {len(w2_components)}')
      
-     #plot_max_vel(Vel, vel_components, log_scale=True, alpha=0.5)
-     
+     for max_vel in [True, False]:
+          fig, ax = plt.subplots()
+          plot_max_vel(ax, Vel, vel_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5)
+          plt.show()
+
+          fig, ax = plt.subplots()
+          plot_max_vel(ax, Vel, slip_vel_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='steelblue', label='Matched')
+          plot_max_vel(ax, Vel, microslip_vel_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='orange', label='Unmatched')
+          ax.legend()
+          plt.show()
+
+          fig, ax = plt.subplots()
+          plot_max_vel(ax, Vel, slip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='steelblue', label='Matched to Slips')
+          plot_max_vel(ax, Vel, microslip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='orange', label='Matched to Velocity Components')
+          plot_max_vel(ax, Vel, nonslip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='red', label='Unmatched')
+          ax.legend()
+          plt.show()

@@ -53,3 +53,33 @@ def check_square(arr):
      ret = check_shape(arr)
      if ret.shape[0] != ret.shape[1]: print('Error! Matrix is not square.')
      return ret
+
+# Return unique elements in list
+def unique(list):
+     unique_list = []
+     for x in list:
+          if x not in unique_list:
+               unique_list.append(x)
+     return unique_list
+
+# Return everything in list1 that is not in list2
+def not_in(list1, list2):
+     not_in_list = []
+     for x in list1:
+          if x not in list2:
+               not_in_list.append(x)
+     return not_in_list
+
+# Extend an interval by R
+def extend(interval, R):
+     init, final = interval
+     return [init-R, final+R]
+
+# Return True if two intervals (extended by R) overlap
+def overlapping(interval_1, interval_2, R=0):
+     interval_1, interval_2 = extend(interval_1, R), extend(interval_2, R)
+     for first, second in [[interval_1, interval_2], [interval_2, interval_1]]:
+          for time in first:
+               if second[0] <= time <= second[1]:
+                    return True
+     return False
