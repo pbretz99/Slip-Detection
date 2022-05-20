@@ -74,7 +74,47 @@ def plot_samples(window):
           filter_plot(ax, Data_forecast[init:final], Data, init, final, Data_label, kind='forecast')
           plt.show()
 
-plot_sample_thresh_vel(0.2, 1.5, (500, 1050), add_times=False)
-plot_sample_thresh_W2(0.4, (500, 1050), add_times=False)
-for window in []:
-     plot_samples(window)
+def plot_samples_with_err(t, window):
+
+     Vel = load_data('xvelocity')
+     W2 = load_data('w2_b0')
+     vel_err = np.load('vel_err.npy')
+     w2_err = np.load('w2_b0_err.npy')
+     
+
+     init, final = t + window[0], t + window[1]
+     fig, axs = plt.subplots(2, 2)
+          
+     ax = axs[0,0]
+     ax.plot(range(init, final), Vel[init:final], c='gray')
+     ax.set_title('Velocity Sample')
+     ax.set_ylabel('Velocity')
+
+     ax = axs[1,0]
+     ax.plot(range(init, final), vel_err[init:final], c='gray')
+     ax.set_title('Velocity Error Sample')
+     ax.set_ylabel('Error')
+
+     ax = axs[0,1]
+     ax.plot(range(init, final), W2[init:final], c='steelblue')
+     ax.set_title('W2B0 Sample')
+     ax.set_ylabel('W2B0')
+
+     ax = axs[1,1]
+     ax.plot(range(init, final), w2_err[init:final], c='steelblue')
+     ax.set_title('W2B0 Error Sample')
+     ax.set_ylabel('Error')
+
+     for i in range(2):
+          for j in range(2):
+               ax = axs[i,j]
+               ax.axvline(x=t, c='black', ls='--', alpha=0.2)
+               ax.ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
+          
+     fig.tight_layout()
+     plt.show()
+
+#plot_sample_thresh_vel(0.2, 1.5, (500, 1050), add_times=False)
+#plot_sample_thresh_W2(0.4, (500, 1050), add_times=False)
+
+plot_samples_with_err(3966, (-100, 100))
