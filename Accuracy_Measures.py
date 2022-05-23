@@ -3,6 +3,7 @@
 from tabnanny import verbose
 import numpy as np
 import matplotlib.pyplot as plt
+from DLM import filter_sample
 from Paper_1 import get_models
 from Utilities import print_tracker, load_data
 
@@ -156,11 +157,64 @@ def run_vel_and_W2_accuracy(eps_vel=0.2, eps_w2=0.4):
      fig.tight_layout()
      plt.show()
 
-#def run_other_measures():
+def run_other_measures():
+
+     slip_times = pd.read_csv('slip_times.csv', names=['Start', 'End'], dtype=int).to_numpy()
+
+     file_labels = ['w2_b1', 'percolate_left_right', 'TP0']
+     models = get_models()[2:]
+     data_labels = ['W2B1', 'Percolation', 'TPO']
+     eps_list = [0.2, 0.1, 0.2]
+     eps_ranges = [np.linspace(eps, 5, 51) for eps in eps_list]
+
+     accuracy_measures = []
+     for file_label, model, eps_range, data_label in zip(file_labels, models, eps_ranges, data_labels):
+          data = load_data(file_label)
+          print(f'\nFiltering {data_label}:')
+          results = filter_sample(model, data, 1, len(data), verbose=True)
+          err = results.standardized_error()
+          accuracy_measures.append(accuracy_measures_overlap(slip_times, eps_range, err, verbose=True))
+
+     for measures, eps_range, data_label in zip(accuracy_measures, eps_ranges, data_labels):
+          print_measures(measures, eps_range, data_label)
+     
+     fig, axs = plt.subplots(3, 1)
+     for measures, eps_range, data_label, ax, show_legend in zip(accuracy_measures, eps_ranges, data_labels, axs, [False, False, True]):
+          plot_accuracy_measures(ax, measures, eps_range, data_label, legend=show_legend)
+          ax.set_xlim(0, 5)
+     fig.tight_layout()
+     plt.show()
+
+def run_W2_and_other_comparison(eps_w2=0.4, eps_w2b1=0.2, eps_perc=0.2, eps_tp0=0.2):
+
+     file_labels = ['w2_b1', 'percolate_left_right', 'TP0']
+     models = get_models()[2:]
+     data_labels = ['W2B1', 'Percolation', 'TPO']
+     
+     w2_err = np.load('w2_b0_err.npy')
+     w2_start, w2_stop = get_times_from_error(w2_err, 1, eps_w2, window_size=25)
+
+     times_list = []
+     for file_label, model, data_label, eps in zip(file_labels, models, data_labels, [eps_w2b1, eps_perc, eps_tp0]):
+          data = load_data(file_label)
+          print(f'\nFiltering {data_label}:')
+          results = filter_sample(model, data, 1, len(data), verbose=True)
+          err = results.standardized_error()
+          start, stop = get_times_from_error(err, 1, eps, window_size=25)
+          times_list.append(pair_times(start, stop))
+     
+     # At the individual level, comparison
+     for times, data_label, eps in zip(times_list, data_labels, [eps_w2b1, eps_perc, eps_tp0]):
+          print(f'At the individual level with (basis) W2B0 eps = {eps_w2} and {data_label} eps = {eps} level:')
+          f_p, t_p_total, t_p_partial = my_measures_overlap(pair_times(w2_start, w2_stop).tolist(), times.tolist())
+          print(f'  f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}')
+
 
 
 if __name__ == '__main__':
 
      #run_vel_accuracy()
-     #run_vel_and_w2_comparison()
-     run_vel_and_W2_accuracy()
+     run_vel_and_w2_comparison()
+     #run_vel_and_W2_accuracy()
+     #run_other_measures()
+     #run_W2_and_other_comparison()
