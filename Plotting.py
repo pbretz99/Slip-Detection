@@ -117,6 +117,24 @@ def diagnostic_plots(results, init, window, data_label, lags, partial=False, ver
 # Plot Measures of Accuracy #
 #############################
 
+# Plot accuracy measures over threshold range
+def plot_accuracy_measures(ax, measures, eps_range, data_label, partial=True, legend=True):
+     if partial:
+          measure_labels = ['$f_p$', '$t_p$ (total)', '$t_p$ (partial)']
+     else:
+          measure_labels = ['$f_p$', '$t_p$']
+     measure_colors = ['orange', 'steelblue', 'steelblue']
+     measure_ls = ['-', '-', '--']
+     for i in range(len(measure_labels)):
+          ax.plot(eps_range, measures[:,i], label=measure_labels[i], c=measure_colors[i], ls=measure_ls[i])
+     ax.axhline(y=1, c='lightgray', ls='--')
+     ax.set_ylim(bottom=0)
+     if legend:
+          ax.legend()
+     ax.set_xlabel('Error Threshold $\epsilon$')
+     ax.set_ylabel('Rate')
+     ax.set_title(f'Accuracy Measures for {data_label} Detections')
+
 # ROC Plot Frame
 def ROC_frame(ax):
      ax.plot([0, 1], [0, 1], c='gray', ls='--')

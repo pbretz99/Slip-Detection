@@ -37,26 +37,9 @@ plt.show()
 import pandas as pd
 import numpy as np
 
-from Utilities import load_data, print_tracker
+from Plotting import plot_accuracy_measures
+from Utilities import load_data, print_tracker, overlapping
 from Times import get_times_from_error, get_all_measures_from_times, print_measures_from_times
-
-def my_measures(vel_detection, slip_start):
-     __, __, __, counts = get_all_measures_from_times(vel_detection, slip_start)
-     N_slips, N_detections, N_matched, N_just_missed = counts['Labels'], counts['Detections'], counts['Matched'], counts['Just Missed']
-     if N_detections == 0:
-          return np.array([0, 0, 0])
-     f_p = 1 - N_matched / N_detections
-     t_p_total = N_matched / N_slips
-     t_p_partial = (N_matched - N_just_missed) / N_slips
-     return np.array([f_p, t_p_total, t_p_partial])
-
-
-def overlapping(interval_1, interval_2):
-     for first, second in [[interval_1, interval_2], [interval_2, interval_1]]:
-          for time in first:
-               if second[0] <= time <= second[1]:
-                    return True
-     return False
 
 # Note: inputs need to be lists of pairs (which are themselves lists)
 def split_by_overlap(detection_pairs, basis_pairs):
@@ -88,7 +71,7 @@ def split_by_advance(overlapping_detection, overlapping_basis):
 
 def my_measures_overlap(detection_pairs, basis_pairs):
      overlap_list, distinct_list = split_by_overlap(detection_pairs, basis_pairs)
-     advance_detection, advance_basis = split_by_advance(overlap_list[0], overlap_list[1])
+     __, advance_basis = split_by_advance(overlap_list[0], overlap_list[1])
      N_detections = len(detection_pairs)
      N_slips = len(basis_pairs)
      N_matched = N_slips - len(distinct_list[1])
@@ -122,76 +105,62 @@ def print_measures(measures, eps_range, data_label):
           f_p, t_p_total, t_p_partial = current_measures
           print(f'f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}, eps = {eps}')
 
-def accuracy_measures(slip_start, eps_range, err, verbose=False):
-     measures = np.zeros((len(eps_range), 3))
-     for i in range(len(eps_range)):
-          if verbose: print_tracker(i, len(eps_range))
-          detection, __ = get_times_from_error(err, 1, eps_range[i], window_size=25)
-          measures[i] = my_measures(detection, slip_start)
-     return measures
-
-def plot_accuracy_measures(ax, measures, eps_range, data_label, legend=True):
-     measure_labels = ['$f_p$', '$t_p$ (total)', '$t_p$ (partial)']
-     measure_colors = ['orange', 'steelblue', 'steelblue']
-     measure_ls = ['-', '--', '-']
-     for i in range(3):
-          ax.plot(eps_range, measures[:,i], label=measure_labels[i], c=measure_colors[i], ls=measure_ls[i])
-     ax.axhline(y=1, c='lightgray', ls='--')
-     ax.set_ylim(bottom=0)
-     if legend:
-          ax.legend()
-     ax.set_xlabel('Error Threshold $\epsilon$')
-     ax.set_ylabel('Rate')
-     ax.set_title(f'Accuracy Measures for {data_label} Detections')
-
-def plot_accuracy_measures2(ax, measures, eps_range, data_label, legend=True):
-     measure_labels = ['$f_p$', '$t_p$']
-     measure_colors = ['orange', 'steelblue']
-     measure_ls = ['-', '-']
-     for i in range(2):
-          ax.plot(eps_range, measures[:,i], label=measure_labels[i], c=measure_colors[i], ls=measure_ls[i])
-     ax.axhline(y=1, c='lightgray', ls='--')
-     ax.set_ylim(bottom=0)
-     if legend:
-          ax.legend()
-     ax.set_xlabel('Error Threshold $\epsilon$')
-     ax.set_ylabel('Rate')
-     ax.set_title(f'Accuracy Measures for {data_label} Detections')
-
-if __name__ == '__main__':
-
+def run_vel_accuracy(eps_vel=0.2):
+     
+     # Get results for varying epsilon
      times_df = pd.read_csv('slip_times.csv', names=['Start', 'End'], dtype=int)
+     vel_err = np.load('vel_err.npy')
+     eps_range = np.linspace(eps_vel, 5, 51)
+     measures_vel = accuracy_measures_overlap(times_df.to_numpy(), eps_range, vel_err, verbose=True)
+     
+     # Print and display results
+     print_measures(measures_vel, eps_range, 'Velocity')
+     fig, ax = plt.subplots()
+     plot_accuracy_measures(ax, measures_vel, eps_range, 'Velocity')
+     plt.show()
 
-     #Vel = load_data('xvelocity')
+def run_vel_and_w2_comparison(eps_vel=0.2, eps_w2=0.4):
+     
      vel_err = np.load('vel_err.npy')
      w2_err = np.load('w2_b0_err.npy')
-     slip_start = times_df['Start'].to_numpy()
 
-     eps_vel, eps_w2 = 0.2, 0.4
+     # At the individual level, comparison
      vel_start, vel_stop = get_times_from_error(vel_err, 1, eps_vel, window_size=25)
      w2_start, w2_stop = get_times_from_error(w2_err, 1, eps_w2, window_size=25)
-
-     print(f'At the Velocity eps = {eps_vel} and W2B0 eps = {eps_w2} level:')
+     print(f'At the individual level with Velocity eps = {eps_vel} and W2B0 eps = {eps_w2} level:')
      f_p, t_p_total, t_p_partial = my_measures_overlap(pair_times(w2_start, w2_stop).tolist(), pair_times(vel_start, vel_stop).tolist())
      print(f'  f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}')
 
-     '''
-     eps_range = np.linspace(0.2, 5, 51)
-     #measures_vel = accuracy_measures(slip_start, eps_range, vel_err, verbose=True)
-     #measures_W2 = accuracy_measures(slip_start, eps_range, w2_err, verbose=True)
-     measures_vel = accuracy_measures_overlap(times_df.to_numpy(), eps_range, vel_err, verbose=True)
-     measures_W2 = accuracy_measures_overlap(times_df.to_numpy(), eps_range, w2_err, verbose=True)
+def run_vel_and_W2_accuracy(eps_vel=0.2, eps_w2=0.4):
 
-     for measures, data_label in [[measures_vel, 'Velocity'], [measures_W2, 'W2B0']]:
+     times_df = pd.read_csv('slip_times.csv', names=['Start', 'End'], dtype=int)
+     vel_err = np.load('vel_err.npy')
+     w2_err = np.load('w2_b0_err.npy')
+
+     # Vary in reference to standard slips
+     eps_range_vel = np.linspace(eps_vel, 5, 51)
+     eps_range_w2 = np.linspace(eps_w2, 5, 51)
+     measures_vel = accuracy_measures_overlap(times_df.to_numpy(), eps_range_vel, vel_err, verbose=True)
+     measures_w2 = accuracy_measures_overlap(times_df.to_numpy(), eps_range_w2, w2_err, verbose=True)
+     
+     # Print results for each
+     for measures, eps_range, data_label in [[measures_vel, eps_range_vel, 'Velocity'], [measures_w2, eps_range_w2, 'W2B0']]:
           print_measures(measures, eps_range, data_label)
 
-     fig, ax = plt.subplots()
-     plot_accuracy_measures(ax, measures_vel, eps_range, 'Wall Velocity')
+     # Plot results for each
+     fig, axs = plt.subplots(2, 1)
+     plot_accuracy_measures(axs[0], measures_vel, eps_range_vel, 'Wall Velocity')
+     plot_accuracy_measures(axs[1], measures_w2, eps_range_w2, 'W2B0', legend=False)
+     for ax in axs:
+          ax.set_xlim(0, 5)
+     fig.tight_layout()
      plt.show()
 
-     fig, axs = plt.subplots(2, 1)
-     plot_accuracy_measures(axs[0], measures_vel, eps_range, 'Wall Velocity')
-     plot_accuracy_measures(axs[1], measures_W2, eps_range, 'W2B0', legend=False)
-     fig.tight_layout()
-     plt.show()'''
+#def run_other_measures():
 
+
+if __name__ == '__main__':
+
+     #run_vel_accuracy()
+     #run_vel_and_w2_comparison()
+     run_vel_and_W2_accuracy()
