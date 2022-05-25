@@ -131,9 +131,25 @@ def plot_accuracy_measures(ax, measures, eps_range, data_label, partial=True, le
      ax.set_ylim(bottom=0)
      if legend:
           ax.legend()
-     ax.set_xlabel('Error Threshold $\epsilon$')
+     ax.set_xlabel('Normalized Model Error $\epsilon$')
      ax.set_ylabel('Rate')
      ax.set_title(f'Accuracy Measures for {data_label} Detections')
+
+# Plot advance measures over threshold range
+def plot_advance_measures(ax, measures, eps_range, data_label, partial=True, legend=True):
+     if partial:
+          measure_labels = ['Median Notice (total)', 'Median Notice (partial)']
+     else:
+          measure_labels = ['Median Notice']
+     measure_ls = ['-', '--']
+     for i in range(len(measure_labels)):
+          ax.plot(eps_range, measures[:,3+i], label=measure_labels[i], c='steelblue', ls=measure_ls[i])
+     if legend and partial:
+          ax.legend()
+     ax.axhline(y=0, c='lightgray', ls='--')
+     ax.set_xlabel('Normalized Model Error $\epsilon$')
+     ax.set_ylabel('Median Advance Notice')
+     ax.set_title(f'Advance Notice for {data_label} Detections')
 
 # ROC Plot Frame
 def ROC_frame(ax):

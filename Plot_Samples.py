@@ -117,4 +117,5 @@ def plot_samples_with_err(t, window):
 #plot_sample_thresh_vel(0.2, 1.5, (500, 1050), add_times=False)
 #plot_sample_thresh_W2(0.4, (500, 1050), add_times=False)
 
-plot_samples_with_err(3966, (-100, 100))
+#plot_samples_with_err(3966, (-100, 100))
+plot_samples_with_err(119498, (-150, 150))

@@ -38,7 +38,7 @@ plt.show()
 import pandas as pd
 import numpy as np
 
-from Plotting import plot_accuracy_measures
+from Plotting import plot_accuracy_measures, plot_advance_measures
 from Utilities import load_data, print_tracker, overlapping
 from Times import get_times_from_error, get_all_measures_from_times, print_measures_from_times
 
@@ -60,6 +60,15 @@ def split_by_overlap(detection_pairs, basis_pairs):
                distinct_basis.append(slip_interval)
      return [overlapping_detection, overlapping_basis], [distinct_detection, distinct_basis]
 
+def get_advance_notice(overlapping_detection, overlapping_basis):
+     notices, examined_basis = [], []
+     for detection_interval, slip_interval in zip(overlapping_detection, overlapping_basis):
+          # Only do advance notice for first matching
+          if slip_interval not in examined_basis:
+               notices.append(slip_interval[0] - detection_interval[0])
+               examined_basis.append(slip_interval)
+     return notices
+
 def split_by_advance(overlapping_detection, overlapping_basis):
      advance_detection, advance_basis = [], []
      for detection_interval, slip_interval in zip(overlapping_detection, overlapping_basis):
@@ -73,6 +82,7 @@ def split_by_advance(overlapping_detection, overlapping_basis):
 def my_measures_overlap(detection_pairs, basis_pairs):
      overlap_list, distinct_list = split_by_overlap(detection_pairs, basis_pairs)
      __, advance_basis = split_by_advance(overlap_list[0], overlap_list[1])
+     advance_notice = get_advance_notice(overlap_list[0], overlap_list[1])
      N_detections = len(detection_pairs)
      N_slips = len(basis_pairs)
      N_matched = N_slips - len(distinct_list[1])
@@ -80,7 +90,13 @@ def my_measures_overlap(detection_pairs, basis_pairs):
      f_p = 1 - N_matched / N_detections
      t_p_total = N_matched / N_slips
      t_p_partial = N_matched_advance / N_slips
-     return np.array([f_p, t_p_total, t_p_partial])
+     adv_total, adv_partial = 0, 0
+     if len(advance_notice) > 0:
+          advance_notice = np.array(advance_notice)
+          adv_total = np.median(advance_notice)
+          if len(advance_notice[advance_notice >= 0]) > 0:
+               adv_partial = np.median(advance_notice[advance_notice >= 0])
+     return np.array([f_p, t_p_total, t_p_partial, adv_total, adv_partial])
 
 def pair_times(start, stop):
      if len(start) == 0 or len(stop) == 0:
@@ -92,7 +108,7 @@ def pair_times(start, stop):
      return np.stack((start, stop), axis=-1)
 
 def accuracy_measures_overlap(basis_pairs, eps_range, err, verbose=False):
-     measures = np.zeros((len(eps_range), 3))
+     measures = np.zeros((len(eps_range), 5))
      for i in range(len(eps_range)):
           if verbose: print_tracker(i, len(eps_range))
           start, stop = get_times_from_error(err, 1, eps_range[i], window_size=25)
@@ -103,8 +119,8 @@ def accuracy_measures_overlap(basis_pairs, eps_range, err, verbose=False):
 def print_measures(measures, eps_range, data_label):
      print(f'\nAccuracy measures for {data_label} with eps ranging from {eps_range[0]} to {eps_range[-1]}:')
      for current_measures, eps in zip(measures.tolist(), eps_range):
-          f_p, t_p_total, t_p_partial = current_measures
-          print(f'f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}, eps = {eps}')
+          f_p, t_p_total, t_p_partial, adv_total, adv_partial = current_measures
+          print(f'f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}, med. adv. (total) {round(adv_total, 1)}, med. adv. (partial) {round(adv_partial, 1)} eps = {eps}')
 
 def run_vel_accuracy(eps_vel=0.2):
      
@@ -116,10 +132,13 @@ def run_vel_accuracy(eps_vel=0.2):
      
      # Print and display results
      print_measures(measures_vel, eps_range, 'Velocity')
-     fig, ax = plt.subplots()
-     plot_accuracy_measures(ax, measures_vel, eps_range, 'Velocity')
+     fig, axs = plt.subplots(1, 2)
+     plot_accuracy_measures(axs[0], measures_vel, eps_range, 'Velocity')
+     plot_advance_measures(axs[1], measures_vel, eps_range, 'Velocity')
+     fig.tight_layout()
      plt.show()
 
+# Change for advance notices (Vel in accuracy_measures_overlap function)
 def run_vel_and_w2_comparison(eps_vel=0.2, eps_w2=0.4):
      
      vel_err = np.load('vel_err.npy')
@@ -129,8 +148,8 @@ def run_vel_and_w2_comparison(eps_vel=0.2, eps_w2=0.4):
      vel_start, vel_stop = get_times_from_error(vel_err, 1, eps_vel, window_size=25)
      w2_start, w2_stop = get_times_from_error(w2_err, 1, eps_w2, window_size=25)
      print(f'At the individual level with Velocity eps = {eps_vel} and W2B0 eps = {eps_w2} level:')
-     f_p, t_p_total, t_p_partial = my_measures_overlap(pair_times(w2_start, w2_stop).tolist(), pair_times(vel_start, vel_stop).tolist())
-     print(f'  f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}')
+     f_p, t_p_total, t_p_partial, adv_total, adv_partial = my_measures_overlap(pair_times(w2_start, w2_stop).tolist(), pair_times(vel_start, vel_stop).tolist())
+     print(f'  f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}, med. adv (total) {adv_total}, med. adv. (partial) {adv_partial}')
 
 def run_vel_and_W2_accuracy(eps_vel=0.2, eps_w2=0.4):
 
@@ -149,9 +168,9 @@ def run_vel_and_W2_accuracy(eps_vel=0.2, eps_w2=0.4):
           print_measures(measures, eps_range, data_label)
 
      # Plot results for each
-     fig, axs = plt.subplots(2, 1)
-     plot_accuracy_measures(axs[0], measures_vel, eps_range_vel, 'Wall Velocity')
-     plot_accuracy_measures(axs[1], measures_w2, eps_range_w2, 'W2B0', legend=False)
+     fig, axs = plt.subplots(1, 2)
+     plot_accuracy_measures(axs[0], measures_w2, eps_range_w2, 'W2B0')
+     plot_advance_measures(axs[1], measures_w2, eps_range_w2, 'W2B0')
      for ax in axs:
           ax.set_xlim(0, 5)
      fig.tight_layout()
