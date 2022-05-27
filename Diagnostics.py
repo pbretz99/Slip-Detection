@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from statsmodels.stats.stattools import durbin_watson
+from scipy.stats import invgamma, shapiro
 
 from Paper_1 import get_models
 from Plotting import filter_plot, error_plot, diagnostic_plots
@@ -12,6 +14,11 @@ def quick_plot(axs, results, Data, data_label, init, final, kind='filter', burn_
      init = init + burn_in
      filter_plot(axs[0], results.point_estimate(kind=kind)[burn_in:], Data, init, final, data_label, kind=kind)
      error_plot(axs[1], results.standardized_error()[burn_in:], init, final, data_label)
+
+# Get Shapiro-Wilks p-value and Durbin-Watson Statistic from error sample
+def diagnostic_stats(err_sample):
+     shapiro_test = shapiro(err_sample)
+     return shapiro_test.pvalue, durbin_watson(err_sample)
 
 def run_diagnostic(measure, Model, data_label, range=(9150, 9550), window=(9300, 9400), burn_in=1000, show_plot=True, kind='filter', show_diagnostic_plots=True, verbose=True):
      
@@ -29,7 +36,14 @@ def run_diagnostic(measure, Model, data_label, range=(9150, 9550), window=(9300,
           plt.show()
 
      # Diagnostic plots
-     sample = diagnostic_plots(results, init, window, data_label, lags=15, show_plots=show_diagnostic_plots, verbose=verbose)
+     sample = diagnostic_plots(results, init, window, data_label, lags=15, show_plots=show_diagnostic_plots)
+
+     # Print Statistics
+     if verbose:
+          shapiro_stat, DW_stat = diagnostic_stats(sample)
+          print('Shapiro-Wilks Test p-value: %2.4f' %shapiro_stat)
+          print('Durbin-Watson Statistic: %2.2f' %DW_stat)
+
      return sample
 
 # Run model diagnostics for Velocity and W2B0
@@ -97,5 +111,5 @@ if __name__ == "__main__":
      sample_ranges = [(600, 1000), (5850, 6250), (9150, 9550)]
      stick_windows = [(775, 850), (6125, 6200), (9300, 9375)]
      run_Vel_diagnostics(ranges=sample_ranges, windows=stick_windows)
-     run_W2_diagnostics(ranges=sample_ranges, windows=stick_windows)
+     #run_W2_diagnostics(ranges=sample_ranges, windows=stick_windows)
 

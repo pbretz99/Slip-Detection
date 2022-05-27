@@ -1,9 +1,12 @@
 
 
+from pyexpat import model
 import numpy as np
 from Paper_1 import get_models, load_data, filter_sample
 
 models = get_models()
+models[0].df = 0.7
+models[1].df = 0.75
 Vel = load_data('xvelocity')
 W2 = load_data('w2_b0')
 
@@ -21,3 +24,5 @@ with open('w2_b0_err.npy', 'wb') as f:
 
 with open('w2_b0_forecast.npy', 'wb') as f:
      np.save(f, results_W2.point_estimate(kind='forecast'))
+
+print('Done!')

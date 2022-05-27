@@ -83,3 +83,19 @@ def overlapping(interval_1, interval_2, R=0):
                if second[0] <= time <= second[1]:
                     return True
      return False
+
+# Return a list of interior intervals [x, y] is replaced with [x + R, y - R]
+def interior_intervals(intervals, R=0):
+     new_intervals = []
+     for x, y in intervals:
+          if x + R <= y - R:
+               new_intervals.append([x + R, y - R])
+     return new_intervals
+
+# Return a list of right-aligned intervals of set size; [x, y] is replaced with [y - size, y]
+def right_intervals(intervals, size=50):
+     new_intervals = []
+     for x, y in intervals:
+          if x <= y - size:
+               new_intervals.append([y - size, y])
+     return new_intervals

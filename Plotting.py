@@ -88,16 +88,10 @@ def acf_plot_innovation(ax, innovation, window, init, data_label, lags):
      ax.set_title('Autocorrelation for %s Sample' %data_label)
 
 # Diagnostic plots
-def diagnostic_plots(results, init, window, data_label, lags, partial=False, verbose=True, show_plots=True):
+def diagnostic_plots(results, init, window, data_label, lags, partial=False, show_plots=True):
 
      err = results.standardized_error()
      sample = err[(window[0]-init):(window[1]-init)]
-
-     # Print Statistics
-     if verbose:
-          shapiro_test = shapiro(sample)
-          print('Shapiro-Wilks Test p-value: %2.4f' %shapiro_test.pvalue)
-          print('Durbin-Watson Statistic: %2.2f' %durbin_watson(sample))
 
      if show_plots:
           fig, ax = plt.subplots(figsize=(5, 5))

@@ -232,8 +232,8 @@ def run_W2_and_other_comparison(eps_w2=0.4, eps_w2b1=0.2, eps_perc=0.2, eps_tp0=
 
 if __name__ == '__main__':
 
-     #run_vel_accuracy()
-     run_vel_and_w2_comparison()
+     run_vel_accuracy()
+     #run_vel_and_w2_comparison()
      #run_vel_and_W2_accuracy()
      #run_other_measures()
      #run_W2_and_other_comparison()

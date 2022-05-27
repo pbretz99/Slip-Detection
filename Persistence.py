@@ -3,9 +3,10 @@ import networkx as nx
 import numpy as np
 from matplotlib import pyplot as plt
 import pandas as pd
+from Diagnostics import diagnostic_stats
 
 # Local Code
-from Utilities import load_data, print_tracker, unique, not_in, overlapping, extend
+from Utilities import interior_intervals, load_data, print_tracker, right_intervals, unique, not_in, overlapping, extend
 from Times import get_times_from_error
 
 class EpsNode:
@@ -182,6 +183,19 @@ def time_ranges(components, R=0, single_points=False):
           intervals.append(extend([init, final], R))
      return intervals
 
+def stick_intervals(components):
+     def key_func(interval):
+          return interval[0]
+     slips = sorted(time_ranges(components), key=key_func)
+     sticks = []
+     if len(slips) > 0:
+          prev_stop = slips[0][1]
+     for start, stop in slips:
+          if start > prev_stop:
+               sticks.append([prev_stop, start])
+          prev_stop = stop
+     return sticks
+
 def lifespans(components):
      eps_span = []
      for component in components:
@@ -275,6 +289,43 @@ def bucket_times(times, bucket_size=1000, empty_buckets=True, bucket_start=None)
      buckets.append(current_bucket)
      return buckets
 
+def get_a_posteriori_diagnosic_stats(components, err, stick_sample_size=50, interior=0):
+     sticks = stick_intervals(components)
+     sticks = interior_intervals(sticks, interior)
+     stick_samples = right_intervals(sticks, stick_sample_size)
+     SW, DW = [], []
+     for start, stop in stick_samples:
+          SW_current, DW_current = diagnostic_stats(err[start:stop])
+          SW.append(SW_current)
+          DW.append(DW_current)
+     return np.array(SW), np.array(DW)
+
+def a_posteriori_diagnosis(components, err, stick_sample_size=50, interior=25, plot_results=True):
+
+     # Get results
+     SW, DW = get_a_posteriori_diagnosic_stats(components, err, stick_sample_size, interior)
+     count = len(SW)
+     good_SW = len(SW[SW >= 0.05])
+     D_bound = 1.23 # Upper bound at the alpha = .05 level
+     good_DW = len(DW[(DW <= (4 - D_bound)) & (DW >= D_bound)])
+     good = len(SW[(SW >= 0.05) & (DW <= (4 - D_bound)) & (DW >= D_bound)])
+
+     # Print results
+     text = f'Out of {count} stick samples, {good_SW} ({round(good_SW / count, 2)}) met the Shapiro-Wilks test, '
+     text += f'{good_DW} ({round(good_DW / count, 2)}) met the Durbin-Watson test, '
+     text += f'and {good} ({round(good / count, 2)}) met both.'
+     print(text)
+     
+     # Plot results
+     if plot_results:
+          fig, axs = plt.subplots(1, 2)
+          for ax, results, test_label in zip(axs, [SW, DW], ['Shapiro-Wilks p-value', 'Durbin-Watson Statistic']):
+               ax.hist(results, bins=30, edgecolor='black', facecolor='lightblue')
+               ax.set_xlabel(test_label)
+               ax.set_ylabel('Count')
+          fig.tight_layout()
+          plt.show()
+
 def plot_max_vel(ax, Vel, vel_components, plot_birth=True, plot_max_vel=True, log_scale=False, **kwargs):
      
      eps_measures, vel_measures = eps_vel_measures(Vel, vel_components)
@@ -294,6 +345,22 @@ def plot_max_vel(ax, Vel, vel_components, plot_birth=True, plot_max_vel=True, lo
           y_label = 'Slip Size'
      
      scatter_eps_vel(ax, eps_measure, vel_measure, x_label, y_label, log_scale=log_scale, **kwargs)
+
+def plot_power_law(ax, Vel, vel_components, log_scale=True, **kwargs):
+     
+     __, vel_measures = eps_vel_measures(Vel, vel_components)
+     slip_sizes = np.array(vel_measures[1])
+     size_vec = np.linspace(np.min(slip_sizes), np.max(slip_sizes), 106)
+     counts_above = [len(slip_sizes[slip_sizes >= size]) for size in size_vec]
+     if log_scale:
+          counts_above = np.log(np.array(counts_above))
+
+     ax.plot(size_vec, counts_above, **kwargs)
+     y_label = 'Count of Detections Larger than Slip Size'
+     if log_scale:
+          y_label += '(log scale)'
+     ax.set_xlabel('Slip Size')
+     ax.set_ylabel(y_label)
 
 def eps_vel_measures(Vel, vel_components):
      vel_time_ranges = time_ranges(vel_components)
@@ -410,19 +477,27 @@ if __name__ == '__main__':
      vel_components = get_components(vel_err, np.linspace(0.2, 5, 51), R=0, verbose=True)
      w2_components = get_components(w2_b0_err, np.linspace(0.4, 5, 51), R=0)
 
-     slip_vel_components = unique(print_comparison(vel_components, 'Velocity', print_distinct=False))
-     microslip_vel_components = not_in(vel_components, slip_vel_components)
-     slip_w2_components = unique(print_comparison(w2_components, 'W2B0', print_distinct=False))
+     print('\nA posteriori diagnostics for Velocity:')
+     for stick_sample_size in [25, 50, 75]:
+          a_posteriori_diagnosis(vel_components, vel_err, stick_sample_size=stick_sample_size)
+
+     print('\nA posteriori diagnostics for W2B0:')
+     for stick_sample_size in [25, 50, 75]:
+          a_posteriori_diagnosis(w2_components, w2_b0_err, stick_sample_size=stick_sample_size)
+
+     #slip_vel_components = unique(print_comparison(vel_components, 'Velocity', print_distinct=False))
+     #microslip_vel_components = not_in(vel_components, slip_vel_components)
+     #slip_w2_components = unique(print_comparison(w2_components, 'W2B0', print_distinct=False))
 
 
-     nonslip_w2_components = print_overlapping(vel_components, w2_components, print_distinct=False)
-     microslip_w2_components = not_in(w2_components, nonslip_w2_components + slip_w2_components)
+     #nonslip_w2_components = print_overlapping(vel_components, w2_components, print_distinct=False)
+     #microslip_w2_components = not_in(w2_components, nonslip_w2_components + slip_w2_components)
      #print_overlapping(vel_components, w2_components, min_lifespan=0.01, print_distinct=False)
      #print_overlapping(vel_components, remove_by_lifespan(w2_components, 0.01), print_distinct=False)
 
-     large_vel_components = remove_by_lifespan(vel_components, 1.5)
-     print(f'\nVelocity breakdown: Large-scale slips count = {len(slip_vel_components)}, Small-scale slips count = {len(microslip_vel_components)}, Total = {len(vel_components)}')
-     print(f'\nW2B0 breakdown: Large-scale slips count = {len(slip_w2_components)}, Small-scale slips count = {len(microslip_w2_components)}, Unmatched count = {len(nonslip_w2_components)}, Total = {len(w2_components)}')
+     #large_vel_components = remove_by_lifespan(vel_components, 1.5)
+     #print(f'\nVelocity breakdown: Large-scale slips count = {len(slip_vel_components)}, Small-scale slips count = {len(microslip_vel_components)}, Total = {len(vel_components)}')
+     #print(f'\nW2B0 breakdown: Large-scale slips count = {len(slip_w2_components)}, Small-scale slips count = {len(microslip_w2_components)}, Unmatched count = {len(nonslip_w2_components)}, Total = {len(w2_components)}')
      
      #for components, component_labels in zip([slip_vel_components, microslip_vel_components], ['Large-Scale', 'Small-Scale']):
      #     print(f'\nList of all Velocity {component_labels} detections:')
@@ -432,7 +507,15 @@ if __name__ == '__main__':
      #     print(f'\nList of all W2B0 {component_labels} detections:')
      #     print_components(components)
      
+     #fig, ax = plt.subplots()
+     #plot_power_law(ax, Vel, vel_components)
+     #plt.show()
 
+     #fig, ax = plt.subplots()
+     #plot_power_law(ax, Vel, w2_components)
+     #plt.show()
+
+     '''
      for max_vel in [True, False]:
           fig, ax = plt.subplots()
           plot_max_vel(ax, Vel, vel_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5)
@@ -449,4 +532,4 @@ if __name__ == '__main__':
           plot_max_vel(ax, Vel, microslip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='orange', label='Matched to Velocity Components')
           plot_max_vel(ax, Vel, nonslip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='red', label='Unmatched')
           ax.legend()
-          plt.show()
+          plt.show()'''
