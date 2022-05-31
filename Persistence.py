@@ -300,26 +300,27 @@ def get_a_posteriori_diagnosic_stats(components, err, stick_sample_size=50, inte
           DW.append(DW_current)
      return np.array(SW), np.array(DW)
 
-def a_posteriori_diagnosis(components, err, stick_sample_size=50, interior=25, plot_results=True):
+def a_posteriori_diagnosis(components, err, stick_sample_size=50, interior=25, plot_results=False):
 
      # Get results
-     SW, DW = get_a_posteriori_diagnosic_stats(components, err, stick_sample_size, interior)
+     SW, LB = get_a_posteriori_diagnosic_stats(components, err, stick_sample_size, interior)
      count = len(SW)
      good_SW = len(SW[SW >= 0.05])
-     D_bound = 1.23 # Upper bound at the alpha = .05 level
-     good_DW = len(DW[(DW <= (4 - D_bound)) & (DW >= D_bound)])
-     good = len(SW[(SW >= 0.05) & (DW <= (4 - D_bound)) & (DW >= D_bound)])
+     good_LB = len(LB[LB >= 0.05])
+     #D_bound = 1.23 # Upper bound at the alpha = .05 level
+     #good_DW = len(DW[(DW <= (4 - D_bound)) & (DW >= D_bound)])
+     #good = len(SW[(SW >= 0.05) & (DW <= (4 - D_bound)) & (DW >= D_bound)])
 
      # Print results
      text = f'Out of {count} stick samples, {good_SW} ({round(good_SW / count, 2)}) met the Shapiro-Wilks test, '
-     text += f'{good_DW} ({round(good_DW / count, 2)}) met the Durbin-Watson test, '
-     text += f'and {good} ({round(good / count, 2)}) met both.'
+     text += f'{good_LB} ({round(good_LB / count, 2)}) met the Ljung-Box test, '
+     #text += f'and {good} ({round(good / count, 2)}) met both.'
      print(text)
      
      # Plot results
      if plot_results:
           fig, axs = plt.subplots(1, 2)
-          for ax, results, test_label in zip(axs, [SW, DW], ['Shapiro-Wilks p-value', 'Durbin-Watson Statistic']):
+          for ax, results, test_label in zip(axs, [SW, LB], ['Shapiro-Wilks p-value', 'Ljung-Box p-value']):
                ax.hist(results, bins=30, edgecolor='black', facecolor='lightblue')
                ax.set_xlabel(test_label)
                ax.set_ylabel('Count')
@@ -474,30 +475,31 @@ if __name__ == '__main__':
      #plot_sample_bars(Vel, vel_err, 0, 2500, np.linspace(0.2, 5, 41), c='steelblue')
      #plot_sample_bars(W2, w2_b0_err, 0, 2500, np.linspace(0.4, 5, 41), c='steelblue')
      
-     vel_components = get_components(vel_err, np.linspace(0.2, 5, 51), R=0, verbose=True)
+     vel_components = get_components(vel_err, np.linspace(0.1, 5, 51), R=0, verbose=True)
      w2_components = get_components(w2_b0_err, np.linspace(0.4, 5, 51), R=0)
 
      print('\nA posteriori diagnostics for Velocity:')
-     for stick_sample_size in [25, 50, 75]:
-          a_posteriori_diagnosis(vel_components, vel_err, stick_sample_size=stick_sample_size)
+     for stick_sample_size in [25]:
+          a_posteriori_diagnosis(vel_components, vel_err, stick_sample_size=stick_sample_size, plot_results=True)
 
      print('\nA posteriori diagnostics for W2B0:')
-     for stick_sample_size in [25, 50, 75]:
-          a_posteriori_diagnosis(w2_components, w2_b0_err, stick_sample_size=stick_sample_size)
+     for stick_sample_size in [25]:
+          a_posteriori_diagnosis(w2_components, w2_b0_err, stick_sample_size=stick_sample_size, plot_results=True)
 
-     #slip_vel_components = unique(print_comparison(vel_components, 'Velocity', print_distinct=False))
-     #microslip_vel_components = not_in(vel_components, slip_vel_components)
-     #slip_w2_components = unique(print_comparison(w2_components, 'W2B0', print_distinct=False))
+     
+     slip_vel_components = unique(print_comparison(vel_components, 'Velocity', print_distinct=False))
+     microslip_vel_components = not_in(vel_components, slip_vel_components)
+     slip_w2_components = unique(print_comparison(w2_components, 'W2B0', print_distinct=False))
 
 
-     #nonslip_w2_components = print_overlapping(vel_components, w2_components, print_distinct=False)
-     #microslip_w2_components = not_in(w2_components, nonslip_w2_components + slip_w2_components)
-     #print_overlapping(vel_components, w2_components, min_lifespan=0.01, print_distinct=False)
-     #print_overlapping(vel_components, remove_by_lifespan(w2_components, 0.01), print_distinct=False)
+     nonslip_w2_components = print_overlapping(vel_components, w2_components, print_distinct=False)
+     microslip_w2_components = not_in(w2_components, nonslip_w2_components + slip_w2_components)
+     print_overlapping(vel_components, w2_components, min_lifespan=0.01, print_distinct=False)
+     print_overlapping(vel_components, remove_by_lifespan(w2_components, 0.01), print_distinct=False)
 
-     #large_vel_components = remove_by_lifespan(vel_components, 1.5)
-     #print(f'\nVelocity breakdown: Large-scale slips count = {len(slip_vel_components)}, Small-scale slips count = {len(microslip_vel_components)}, Total = {len(vel_components)}')
-     #print(f'\nW2B0 breakdown: Large-scale slips count = {len(slip_w2_components)}, Small-scale slips count = {len(microslip_w2_components)}, Unmatched count = {len(nonslip_w2_components)}, Total = {len(w2_components)}')
+     large_vel_components = remove_by_lifespan(vel_components, 1.5)
+     print(f'\nVelocity breakdown: Large-scale slips count = {len(slip_vel_components)}, Small-scale slips count = {len(microslip_vel_components)}, Total = {len(vel_components)}')
+     print(f'\nW2B0 breakdown: Large-scale slips count = {len(slip_w2_components)}, Small-scale slips count = {len(microslip_w2_components)}, Unmatched count = {len(nonslip_w2_components)}, Total = {len(w2_components)}')
      
      #for components, component_labels in zip([slip_vel_components, microslip_vel_components], ['Large-Scale', 'Small-Scale']):
      #     print(f'\nList of all Velocity {component_labels} detections:')
@@ -515,7 +517,6 @@ if __name__ == '__main__':
      #plot_power_law(ax, Vel, w2_components)
      #plt.show()
 
-     '''
      for max_vel in [True, False]:
           fig, ax = plt.subplots()
           plot_max_vel(ax, Vel, vel_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5)
@@ -532,4 +533,4 @@ if __name__ == '__main__':
           plot_max_vel(ax, Vel, microslip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='orange', label='Matched to Velocity Components')
           plot_max_vel(ax, Vel, nonslip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='red', label='Unmatched')
           ax.legend()
-          plt.show()'''
+          plt.show()

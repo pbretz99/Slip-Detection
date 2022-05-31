@@ -1,43 +1,11 @@
 
-
-from tabnanny import verbose
-import numpy as np
 import matplotlib.pyplot as plt
-from DLM import filter_sample
-from Paper_1 import get_models
-from Utilities import print_tracker, load_data
-
-def train_model(Model, Data, init, final, set_init=True, verbose=False):
-     if set_init: Model.m[0,0] = Data[init]
-     results = np.zeros((final-init,))
-     for t in range(init, final):
-          if verbose: print_tracker(t-init, final-init)
-          ret = Model.filter(Data[t], return_results=True)
-          results[t-init] = ret['forecast']
-     if verbose: print('Complete!')
-     return results
-
-'''
-W2 = load_data('w2_b0')
-model = get_models()[1]
-init, break_point, final = 6000, 6100, 6250
-forecast = train_model(model, W2, init, break_point)
-print(model.m.flatten()[0:2])
-sample = model.monte_carlo(steps=final-break_point)
-print(len(sample))
-print(final-break_point)
-
-fig, ax = plt.subplots(figsize=(5, 10))
-ax.plot(range(init, final), W2[init:final], c='gray')
-ax.plot(range(init, break_point), forecast, c='steelblue')
-ax.plot(range(break_point, final), sample, c='green')
-plt.show()
-'''
-
-
 import pandas as pd
 import numpy as np
 
+from DLM import filter_sample
+from Paper_1 import get_models
+from Plot_Samples import plot_sample_thresh
 from Plotting import plot_accuracy_measures, plot_advance_measures
 from Utilities import load_data, print_tracker, overlapping
 from Times import get_times_from_error, get_all_measures_from_times, print_measures_from_times
@@ -122,6 +90,14 @@ def print_measures(measures, eps_range, data_label):
           f_p, t_p_total, t_p_partial, adv_total, adv_partial = current_measures
           print(f'f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}, med. adv. (total) {round(adv_total, 1)}, med. adv. (partial) {round(adv_partial, 1)} eps = {eps}')
 
+def get_detection_counts(eps_range, err, verbose=False):
+     counts = []
+     for i in range(len(eps_range)):
+          if verbose: print_tracker(i, len(eps_range))
+          start, __ = get_times_from_error(err, 1, eps_range[i], window_size=25)
+          counts.append(len(start))
+     return np.array(counts)
+
 def run_vel_accuracy(eps_vel=0.2):
      
      # Get results for varying epsilon
@@ -134,7 +110,7 @@ def run_vel_accuracy(eps_vel=0.2):
      print_measures(measures_vel, eps_range, 'Velocity')
      fig, axs = plt.subplots(1, 2)
      plot_accuracy_measures(axs[0], measures_vel, eps_range, 'Velocity')
-     plot_advance_measures(axs[1], measures_vel, eps_range, 'Velocity')
+     plot_advance_measures(axs[1], measures_vel, eps_range, 'Velocity', partial=False)
      fig.tight_layout()
      plt.show()
 
@@ -151,26 +127,22 @@ def run_vel_and_w2_comparison(eps_vel=0.2, eps_w2=0.4):
      f_p, t_p_total, t_p_partial, adv_total, adv_partial = my_measures_overlap(pair_times(w2_start, w2_stop).tolist(), pair_times(vel_start, vel_stop).tolist())
      print(f'  f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}, med. adv (total) {adv_total}, med. adv. (partial) {adv_partial}')
 
-def run_vel_and_W2_accuracy(eps_vel=0.2, eps_w2=0.4):
+def run_W2_accuracy(eps_w2=0.4):
 
      times_df = pd.read_csv('slip_times.csv', names=['Start', 'End'], dtype=int)
-     vel_err = np.load('vel_err.npy')
      w2_err = np.load('w2_b0_err.npy')
 
      # Vary in reference to standard slips
-     eps_range_vel = np.linspace(eps_vel, 5, 51)
      eps_range_w2 = np.linspace(eps_w2, 5, 51)
-     measures_vel = accuracy_measures_overlap(times_df.to_numpy(), eps_range_vel, vel_err, verbose=True)
      measures_w2 = accuracy_measures_overlap(times_df.to_numpy(), eps_range_w2, w2_err, verbose=True)
      
      # Print results for each
-     for measures, eps_range, data_label in [[measures_vel, eps_range_vel, 'Velocity'], [measures_w2, eps_range_w2, 'W2B0']]:
-          print_measures(measures, eps_range, data_label)
-
+     print_measures(measures_w2, eps_range_w2, 'W2B0')
+     
      # Plot results for each
      fig, axs = plt.subplots(1, 2)
      plot_accuracy_measures(axs[0], measures_w2, eps_range_w2, 'W2B0')
-     plot_advance_measures(axs[1], measures_w2, eps_range_w2, 'W2B0')
+     plot_advance_measures(axs[1], measures_w2, eps_range_w2, 'W2B0', partial=False)
      for ax in axs:
           ax.set_xlim(0, 5)
      fig.tight_layout()
@@ -228,12 +200,44 @@ def run_W2_and_other_comparison(eps_w2=0.4, eps_w2b1=0.2, eps_perc=0.2, eps_tp0=
           f_p, t_p_total, t_p_partial = my_measures_overlap(pair_times(w2_start, w2_stop).tolist(), times.tolist())
           print(f'  f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}')
 
+def run_detection_count():
+     
+     vel_err = np.load('vel_err.npy')
+     w2_err = np.load('w2_b0_err.npy')
+
+     eps_range = np.linspace(0, 5, 56)
+
+     vel_counts = get_detection_counts(eps_range, vel_err)
+     w2_counts = get_detection_counts(eps_range, w2_err)
+
+     fig = plt.figure()
+     ax0 = plt.subplot2grid((2, 2), (0, 0), rowspan=2)
+     ax1 = plt.subplot2grid((2, 2), (0, 1))
+     ax2 = plt.subplot2grid((2, 2), (1, 1))
+
+     ax0.plot(eps_range, vel_counts, label='$v_x$', c='darkblue')
+     ax0.plot(eps_range, w2_counts, label='W2B0', c='steelblue')
+     ax0.set_xlabel('NME')
+     ax0.set_ylabel('Detection Count')
+     bottom, top = ax0.get_ylim()
+     left, right = ax0.get_xlim()
+     for small_eps, large_eps, color in zip([0.1, 0.4], [1.5, 1.75], ['darkblue', 'steelblue']):
+          ax0.axvline(x=small_eps, c=color, ls='--', lw=1)
+          ax0.axvline(x=large_eps, c=color, ls='-', lw=1)
+     ax0.text(right - 0.12 * (right - left), top - 0.9 * (top - bottom), '(a)')
+     ax0.legend()
+
+     plot_sample_thresh(ax1, 0.1, 1.5, (550, 1050), data=load_data('xvelocity'), err=np.load('vel_err.npy'), add_times=True, lettering='(b)', color='darkblue')
+     plot_sample_thresh(ax2, 0.4, 1.75, (550, 1050), data=load_data('w2_b0'), err=np.load('w2_b0_err.npy'), add_times=True, lettering='(c)')
+     ax2.set_xlabel('t')
+     plt.show()
 
 
 if __name__ == '__main__':
 
-     run_vel_accuracy()
+     run_detection_count()
+     #run_vel_accuracy()
      #run_vel_and_w2_comparison()
-     #run_vel_and_W2_accuracy()
+     #run_W2_accuracy()
      #run_other_measures()
      #run_W2_and_other_comparison()

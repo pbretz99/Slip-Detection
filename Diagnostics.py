@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from statsmodels.stats.stattools import durbin_watson
+import statsmodels.api as sm
 from scipy.stats import invgamma, shapiro
 
 from Paper_1 import get_models
@@ -18,7 +19,7 @@ def quick_plot(axs, results, Data, data_label, init, final, kind='filter', burn_
 # Get Shapiro-Wilks p-value and Durbin-Watson Statistic from error sample
 def diagnostic_stats(err_sample):
      shapiro_test = shapiro(err_sample)
-     return shapiro_test.pvalue, durbin_watson(err_sample)
+     return shapiro_test.pvalue, sm.stats.acorr_ljungbox(err_sample, lags=[1]).lb_pvalue.iloc[0]
 
 def run_diagnostic(measure, Model, data_label, range=(9150, 9550), window=(9300, 9400), burn_in=1000, show_plot=True, kind='filter', show_diagnostic_plots=True, verbose=True):
      
@@ -40,10 +41,10 @@ def run_diagnostic(measure, Model, data_label, range=(9150, 9550), window=(9300,
 
      # Print Statistics
      if verbose:
-          shapiro_stat, DW_stat = diagnostic_stats(sample)
-          print('Shapiro-Wilks Test p-value: %2.4f' %shapiro_stat)
-          print('Durbin-Watson Statistic: %2.2f' %DW_stat)
-
+          SW_stat, LB_stat = diagnostic_stats(sample)
+          print('Shapiro-Wilks Test p-value: %2.4f' %SW_stat)
+          print('Ljung-Box Test p-vaue (lag 1): %2.2f' %LB_stat)
+          
      return sample
 
 # Run model diagnostics for Velocity and W2B0
