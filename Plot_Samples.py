@@ -8,20 +8,20 @@ from Times import get_times_from_error
 from Utilities import load_data
 from Plotting import add_subplot_axes
 
-def plot_sample_thresh(ax, eps_1, eps_2, window, data, err, add_times=True, lettering=None, color='steelblue'):
+def plot_sample_thresh(ax, eps_1, eps_2, window, data, err, data_label, add_times=True, lettering=None, colors=['green', 'orange']):
      
      init, final = window
      times_1, __ = get_times_from_error(err[init:final], init, eps_1, window_size=25, burn_in=25)
      times_2, __ = get_times_from_error(err[init:final], init, eps_2, window_size=25, burn_in=25)
      for t in times_1: print(t)
 
-     ax.plot(range(init, final), err[init:final], c='gray', lw=0.75)
+     ax.plot(range(init, final), data[init:final], c='gray', lw=0.75)
      if add_times:
-          add_times_to_plot(ax, init, final, times_2, c=color, ls='-', lw=1.5)
-          add_times_to_plot(ax, init, final, times_1, c=color, ls='--', lw=1)
+          add_times_to_plot(ax, init, final, times_2, c=colors[1], ls='-', lw=1)
+          add_times_to_plot(ax, init, final, times_1, c=colors[0], ls='--', lw=1)
      bottom, top = ax.get_ylim()
      ax.set_ylim(bottom, top + 0.75 * (top - bottom))
-     ax.set_ylabel('NME')
+     ax.set_ylabel(data_label)
      if lettering is not None:
           bottom, top = ax.get_ylim()
           left, right = ax.get_xlim()
@@ -29,11 +29,12 @@ def plot_sample_thresh(ax, eps_1, eps_2, window, data, err, add_times=True, lett
      
 
      ax_new = add_subplot_axes(ax, [0.3, 0.5, 0.6, 0.4])
-     ax_new.plot(range(init, final), data[init:final], c='gray', lw=0.75)
-     #ax_new.set_ylabel('$v_x$')
+     ax_new.plot(range(init, final), err[init:final], c='gray', lw=0.75)
+     ax_new.set_ylabel('NME')
      if add_times:
-          add_times_to_plot(ax_new, init, final, times_2, c=color, ls='-', lw=1.5)
-          add_times_to_plot(ax_new, init, final, times_1, c=color, ls='--', lw=1)
+          add_times_to_plot(ax_new, init, final, times_2, c=colors[1], ls='-', lw=1)
+          add_times_to_plot(ax_new, init, final, times_1, c=colors[0], ls='--', lw=1)
+          
 
 
 def plot_samples(window):
@@ -145,17 +146,9 @@ def run_plot_fig_3(measure='xvelocity', data_label='$v_x$'):
 if __name__ == '__main__':
 
      #run_plot_fig_3(measure='w2_b0', data_label='W2B0')
+     plot_samples_with_err(6050, (-50, 50))
 
-     fig = plt.figure()
-     ax0 = plt.subplot2grid((2, 2), (0, 0), rowspan=2)
-     ax1 = plt.subplot2grid((2, 2), (0, 1))
-     ax2 = plt.subplot2grid((2, 2), (1, 1))
 
-     plot_sample_thresh(ax1, 0.2, 1.5, (550, 1050), data=load_data('xvelocity'), err=np.load('vel_err.npy'), add_times=True, lettering='(b)', color='darkblue')
-     plot_sample_thresh(ax2, 0.4, 1.75, (550, 1050), data=load_data('w2_b0'), err=np.load('w2_b0_err.npy'), add_times=True, lettering='(c)')
-     ax2.set_xlabel('t')
-     plt.show()
-
-#plot_samples_with_err(3966, (-100, 100))
+     #plot_samples_with_err(3966, (-100, 100))
 #plot_samples_with_err(119498, (-150, 150))
 #plot_samples_with_err(13517, (-50, 50))

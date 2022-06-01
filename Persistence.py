@@ -463,35 +463,14 @@ def print_comparison(components, data_label, R=0, print_distinct=True):
                     print(f'({start}, {stop})')
      return overlapping_comp[0]
 
-if __name__ == '__main__':
+def plot_all_scatter_vels(vel_components, w2_components):
 
      Vel = load_data('xvelocity')
-     W2 = load_data('w2_b0')
-     init, final = [0, len(Vel)]
-     vel_err = np.load('vel_err.npy')[init:final]
-     w2_b0_err = np.load('w2_b0_err.npy')[init:final]
-     eps_range = np.linspace(0, 5, 251)
-     
-     #plot_sample_bars(Vel, vel_err, 0, 2500, np.linspace(0.2, 5, 41), c='steelblue')
-     #plot_sample_bars(W2, w2_b0_err, 0, 2500, np.linspace(0.4, 5, 41), c='steelblue')
-     
-     vel_components = get_components(vel_err, np.linspace(0.1, 5, 51), R=0, verbose=True)
-     w2_components = get_components(w2_b0_err, np.linspace(0.4, 5, 51), R=0)
 
-     print('\nA posteriori diagnostics for Velocity:')
-     for stick_sample_size in [25]:
-          a_posteriori_diagnosis(vel_components, vel_err, stick_sample_size=stick_sample_size, plot_results=True)
-
-     print('\nA posteriori diagnostics for W2B0:')
-     for stick_sample_size in [25]:
-          a_posteriori_diagnosis(w2_components, w2_b0_err, stick_sample_size=stick_sample_size, plot_results=True)
-
-     
+     # Clean this up
      slip_vel_components = unique(print_comparison(vel_components, 'Velocity', print_distinct=False))
      microslip_vel_components = not_in(vel_components, slip_vel_components)
      slip_w2_components = unique(print_comparison(w2_components, 'W2B0', print_distinct=False))
-
-
      nonslip_w2_components = print_overlapping(vel_components, w2_components, print_distinct=False)
      microslip_w2_components = not_in(w2_components, nonslip_w2_components + slip_w2_components)
      print_overlapping(vel_components, w2_components, min_lifespan=0.01, print_distinct=False)
@@ -501,21 +480,6 @@ if __name__ == '__main__':
      print(f'\nVelocity breakdown: Large-scale slips count = {len(slip_vel_components)}, Small-scale slips count = {len(microslip_vel_components)}, Total = {len(vel_components)}')
      print(f'\nW2B0 breakdown: Large-scale slips count = {len(slip_w2_components)}, Small-scale slips count = {len(microslip_w2_components)}, Unmatched count = {len(nonslip_w2_components)}, Total = {len(w2_components)}')
      
-     #for components, component_labels in zip([slip_vel_components, microslip_vel_components], ['Large-Scale', 'Small-Scale']):
-     #     print(f'\nList of all Velocity {component_labels} detections:')
-     #     print_components(components)
-     
-     #for components, component_labels in zip([slip_w2_components, microslip_w2_components, nonslip_w2_components], ['Large-Scale', 'Small-Scale', 'Unmatched']):
-     #     print(f'\nList of all W2B0 {component_labels} detections:')
-     #     print_components(components)
-     
-     #fig, ax = plt.subplots()
-     #plot_power_law(ax, Vel, vel_components)
-     #plt.show()
-
-     #fig, ax = plt.subplots()
-     #plot_power_law(ax, Vel, w2_components)
-     #plt.show()
 
      for max_vel in [True, False]:
           fig, ax = plt.subplots()
@@ -534,3 +498,25 @@ if __name__ == '__main__':
           plot_max_vel(ax, Vel, nonslip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='red', label='Unmatched')
           ax.legend()
           plt.show()
+
+def run_diagnostics():
+
+     measures = ['vel', 'w2_b0', 'w2_b1', 'perc']
+     eps_mins = [0.1, 0.4, 0.2, 0.1]
+     data_labels = ['v_x', 'W2B0', 'W2B1', 'Percolation']
+
+     component_dict = {}
+     for measure, eps, data_label in zip(measures, eps_mins, data_labels):
+          if data_label in ['v_x', 'W2B0', 'W2B1', 'Percolation']:
+               err = np.load(f'{measure}_err.npy')
+               component_dict[data_label] = get_components(err, np.linspace(eps, 5, 51), R=0, verbose=True)
+
+     for data_label in component_dict.keys():
+          print(f'\nA posteriori diagnostics for {data_label}')
+          a_posteriori_diagnosis(component_dict[data_label], err, stick_sample_size=25, plot_results=True)
+
+if __name__ == '__main__':
+
+     run_diagnostics()
+
+     

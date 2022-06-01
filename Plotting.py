@@ -129,6 +129,23 @@ def plot_accuracy_measures(ax, measures, eps_range, data_label, partial=True, le
      ax.set_ylabel('Rate')
      ax.set_title(f'Accuracy Measures for {data_label} Detections')
 
+def plot_accuracy_measures_all(axs, measures, eps_range, data_label, color='steelblue'):
+     measure_labels = ['$t_p$ (total)', '$t_p$ (advance)', '$f_p$', 'Med. Advance Notice']
+     num = 0
+     for i in [0, 1]:
+          for j in [0, 1]:
+               ax = axs[i,j]
+               ax.plot(eps_range, measures[:,num], label=data_label, c=color)
+               ax.set_ylabel(measure_labels[num])
+               if i == 1 and j == 1:
+                    ax.axhline(y=0, c='lightgray', ls='--')
+               else:
+                    ax.axhline(y=1, c='lightgray', ls='--')
+                    ax.set_ylim(bottom=0)
+               num += 1
+     for j in [0, 1]:
+          axs[1,j].set_xlabel('NME')
+
 # Plot advance measures over threshold range
 def plot_advance_measures(ax, measures, eps_range, data_label, partial=True, legend=True):
      if partial:
@@ -240,3 +257,8 @@ def add_subplot_axes(ax,rect,axisbg='w'):
     subax.xaxis.set_tick_params(labelsize=x_labelsize)
     subax.yaxis.set_tick_params(labelsize=y_labelsize)
     return subax
+
+def add_lettering(ax, letter, x, y):
+     left, right = ax.get_xlim()
+     bottom, top = ax.get_ylim()
+     ax.text(left + x * (right - left), bottom + y * (top - bottom), letter)
