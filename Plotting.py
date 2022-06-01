@@ -144,7 +144,7 @@ def plot_accuracy_measures_all(axs, measures, eps_range, data_label, color='stee
                     ax.set_ylim(bottom=0)
                num += 1
      for j in [0, 1]:
-          axs[1,j].set_xlabel('NME')
+          axs[1,j].set_xlabel('$T_e$')
 
 # Plot advance measures over threshold range
 def plot_advance_measures(ax, measures, eps_range, data_label, partial=True, legend=True):

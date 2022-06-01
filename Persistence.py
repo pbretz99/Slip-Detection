@@ -507,7 +507,7 @@ def run_diagnostics():
 
      component_dict = {}
      for measure, eps, data_label in zip(measures, eps_mins, data_labels):
-          if data_label in ['v_x', 'W2B0', 'W2B1', 'Percolation']:
+          if data_label in ['Percolation']:
                err = np.load(f'{measure}_err.npy')
                component_dict[data_label] = get_components(err, np.linspace(eps, 5, 51), R=0, verbose=True)
 

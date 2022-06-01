@@ -58,7 +58,7 @@ def my_measures_overlap(detection_pairs, basis_pairs):
      f_p = 1 - N_matched / N_detections
      t_p_total = N_matched / N_slips
      t_p_partial = N_matched_advance / N_slips
-     adv_total, adv_partial = 0, 0
+     adv_total = 0
      if len(advance_notice) > 0:
           advance_notice = np.array(advance_notice)
           adv_total = np.median(advance_notice)
@@ -158,17 +158,58 @@ def print_and_plot_accuracy(axs, measure, eps, data_label, color, verbose=True):
 
 def run_all_measures_accuracy():
      
+     eps_mins = [0.1, 0.1, 0.4]
+     file_labels = ['vel', 'perc', 'w2_b0']
+     data_labels = ['$v_x$', 'Perc', 'W2B0']
+     colors = ['darkblue', 'green', 'steelblue']
+
+     fig, axs = plt.subplots(2, 2)
+     for eps, file_label, data_label, color in zip(eps_mins, file_labels, data_labels, colors):
+          print(f'\nRunning {data_label}')
+          print_and_plot_accuracy(axs, file_label, eps, data_label, color)
+     axs[0,0].legend()
+     
+     add_lettering(axs[0,0], '(a)', 0.1, 0.8)
+     add_lettering(axs[0,1], '(b)', 0.8, 0.8)
+     add_lettering(axs[1,0], '(c)', 0.1, 0.8)
+     add_lettering(axs[1,1], '(d)', 0.1, 0.1)
+     
+     plt.show()
+
+def run_all_measures_compare():
+
+     times_df = pd.read_csv('slip_times.csv', names=['Start', 'End'], dtype=int).to_numpy()
+
      eps_mins = [0.1, 0.4, 0.2, 0.1]
      file_labels = ['vel', 'w2_b0', 'w2_b1', 'perc']
      data_labels = ['$v_x$', 'W2B0', 'W2B1', 'Perc']
      colors = ['darkblue', 'steelblue', 'lightblue', 'green']
 
+     advance_notices = []
+     for eps, file_label, data_label in zip(eps_mins, file_labels, data_labels):
+          print(f'\nRunning {data_label}')
+          err = np.load(f'{file_label}_err.npy')
+          start, stop = get_times_from_error(err, 1, threshold=eps, window_size=25)
+          overlap_list, __ = split_by_overlap(pair_times(start, stop).tolist(), times_df.tolist())
+          advance_notices.append(np.array(get_advance_notice(overlap_list[0], overlap_list[1])))
+     
      fig, axs = plt.subplots(2, 2)
-     for eps, file_label, data_label, color in zip(eps_mins, file_labels, data_labels, colors):
-          print_and_plot_accuracy(axs, file_label, eps, data_label, color)
+     n = 0
      for i in [0, 1]:
           for j in [0, 1]:
-               axs[i,j].legend()
+               vals = advance_notices[n]
+               axs[i,j].hist(vals[vals <= 80], facecolor=colors[n], edgecolor='black', bins=30)
+               axs[i,j].set_xlim(-5, 80)
+               n += 1
+     
+     for j in [0, 1]:
+          axs[1,j].set_xlabel('Advance Notice')
+
+     add_lettering(axs[0,0], '(a)', 0.8, 0.8)
+     add_lettering(axs[0,1], '(b)', 0.8, 0.8)
+     add_lettering(axs[1,0], '(c)', 0.8, 0.8)
+     add_lettering(axs[1,1], '(d)', 0.8, 0.8)
+     
      plt.show()
 
 def run_vel_and_w2_accuracy():
@@ -226,7 +267,7 @@ def run_vel_and_w2_detection_count():
 
      ax0.plot(eps_range, vel_counts, label='$v_x$', c='darkblue')
      ax0.plot(eps_range, w2_counts, label='W2B0', c='steelblue')
-     ax0.set_xlabel('NME')
+     ax0.set_xlabel('$T_e$')
      ax0.set_ylabel('Detection Count')
      bottom, top = ax0.get_ylim()
      left, right = ax0.get_xlim()
@@ -243,12 +284,12 @@ def run_vel_and_w2_detection_count():
 
 def run_all_measures_detection_count(plot_med_vel=True):
 
-     old_file_labels = ['xvelocity', 'w2_b0', 'w2_b1', 'percolate_left_right']
-     file_labels = ['vel', 'w2_b0', 'w2_b1', 'perc']
-     data_labels = ['$v_x$', 'W2B0', 'W2B1', 'Perc']
-     colors = ['darkblue', 'steelblue', 'lightblue', 'green']
+     old_file_labels = ['xvelocity', 'percolate_left_right', 'w2_b0']
+     file_labels = ['vel', 'perc', 'w2_b0']
+     data_labels = ['$v_x$', 'Perc', 'W2B0']
+     colors = ['darkblue', 'green', 'steelblue']
 
-     eps_range = np.linspace(0, 5, 51)
+     eps_range = np.linspace(0, 10, 101)
      errors = []
      counts = []
      med_vels = []
@@ -271,27 +312,23 @@ def run_all_measures_detection_count(plot_med_vel=True):
      
      for count, label, color in zip(counts, data_labels, colors):
           ax0.plot(eps_range, count, label=label, c=color)
-     ax0.set_xlabel('NME')
+     ax0.set_xlabel('$T_e$')
      ax0.set_ylabel('Detection Count')
-     #bottom, top = ax0.get_ylim()
-     #left, right = ax0.get_xlim()
      if not plot_med_vel:
           colors = ['orange', 'green']
           for eps, color, ls in zip([0.4, 1.5], colors, ['--', '-']):
                ax0.axvline(x=eps, c=color, ls=ls, lw=1)
-     ax0.text(right - 0.12 * (right - left), top - 0.9 * (top - bottom), '(a)')
+     add_lettering(ax0, '(a)', 0.1, 0.1)
      ax0.legend()
 
      if plot_med_vel:
           ax1 = axs[1]
           for med_vel, label, color in zip(med_vels, data_labels, colors):
                ax1.plot(eps_range, med_vel, label=label, c=color)
-          ax1.set_xlabel('NME')
+          ax1.set_xlabel('$T_e$')
           ax1.set_ylabel('Median $v_x$ at Detection')
-          bottom, top = ax1.get_ylim()
-          left, right = ax1.get_xlim()
-          ax1.text(left + 0.1 * (right - left), top - 0.1 * (top - bottom), '(b)')
-
+          add_lettering(ax1, '(b)', 0.1, 0.9)
+     
      if not plot_med_vel:
           colors = ['orange', 'green']
           for ax, filename, err, data_label, letter in zip(right_axs, old_file_labels, errors, data_labels, ['(b)', '(c)', '(d)', '(e)']):
@@ -300,19 +337,12 @@ def run_all_measures_detection_count(plot_med_vel=True):
      
      plt.show()
 
-     fig, ax = plt.subplots()
-     for med_vel, count, label, color in zip(med_vels, counts, data_labels, colors):
-          ax.plot(med_vel, count, label=label, c=color)
-     ax.set_xlabel('Med. $v_x$ at Detection')
-     ax.set_ylabel('Detection Count')
-     ax.legend()
-     plt.show()
-
 if __name__ == '__main__':
 
      #run_vel_and_w2_detection_count()
      run_all_measures_detection_count(plot_med_vel=True)
      #run_vel_and_w2_comparison()
      #run_vel_and_w2_accuracy()
-     #run_all_measures_accuracy()
+     run_all_measures_accuracy()
+     #run_all_measures_compare()
      #run_W2_and_other_comparison()
