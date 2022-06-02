@@ -302,10 +302,10 @@ def run_all_measures_detection_count(plot_med_vel=True):
 
      if not plot_med_vel:
           fig = plt.figure()
-          ax0 = plt.subplot2grid((4, 2), (0, 0), rowspan=4)
+          ax0 = plt.subplot2grid((len(file_labels), 2), (0, 0), rowspan=len(file_labels))
           right_axs = []
-          for i in range(4):
-               right_axs.append(plt.subplot2grid((4, 2), (i, 1)))
+          for i in range(len(file_labels)):
+               right_axs.append(plt.subplot2grid((len(file_labels), 2), (i, 1)))
      else:
           fig, axs = plt.subplots(1, 2)
           ax0 = axs[0]
@@ -331,8 +331,8 @@ def run_all_measures_detection_count(plot_med_vel=True):
      
      if not plot_med_vel:
           colors = ['orange', 'green']
-          for ax, filename, err, data_label, letter in zip(right_axs, old_file_labels, errors, data_labels, ['(b)', '(c)', '(d)', '(e)']):
-               plot_sample_thresh(ax, 0.4, 1.5, (950, 1050), data=load_data(filename), err=err, data_label=data_label, add_times=True, lettering=letter, colors=colors)
+          for ax, filename, err, data_label, letter in zip(right_axs, old_file_labels, errors, data_labels, ['(b)', '(c)', '(d)']):
+               plot_sample_thresh(ax, 0.4, 1.5, (900, 1050), data=load_data(filename), err=err, data_label=data_label, add_times=True, lettering=letter, colors=colors)
           right_axs[-1].set_xlabel('t')
      
      plt.show()
@@ -340,9 +340,9 @@ def run_all_measures_detection_count(plot_med_vel=True):
 if __name__ == '__main__':
 
      #run_vel_and_w2_detection_count()
-     run_all_measures_detection_count(plot_med_vel=True)
+     run_all_measures_detection_count(plot_med_vel=False)
      #run_vel_and_w2_comparison()
      #run_vel_and_w2_accuracy()
-     run_all_measures_accuracy()
+     #run_all_measures_accuracy()
      #run_all_measures_compare()
      #run_W2_and_other_comparison()

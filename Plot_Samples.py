@@ -34,7 +34,7 @@ def plot_sample_thresh(ax, eps_1, eps_2, window, data, err, data_label, add_time
      if add_times:
           add_times_to_plot(ax_new, init, final, times_2, c=colors[1], ls='-', lw=1)
           add_times_to_plot(ax_new, init, final, times_1, c=colors[0], ls='--', lw=1)
-          
+     ax_new.set_ylim(-2.5, 2.5)
 
 
 def plot_samples(window):
@@ -53,7 +53,7 @@ def plot_samples(window):
 def plot_samples_with_err(t, window):
 
      Vel = load_data('xvelocity')
-     W2 = load_data('w2_b0')
+     W2 = load_data('percolate_left_right')
      vel_err = np.load('vel_err.npy')
      w2_err = np.load('w2_b0_err.npy')
      
@@ -146,7 +146,7 @@ def run_plot_fig_3(measure='xvelocity', data_label='$v_x$'):
 if __name__ == '__main__':
 
      #run_plot_fig_3(measure='w2_b0', data_label='W2B0')
-     plot_samples_with_err(6050, (-50, 50))
+     plot_samples_with_err(6050, (-200, 150))
 
 
      #plot_samples_with_err(3966, (-100, 100))
