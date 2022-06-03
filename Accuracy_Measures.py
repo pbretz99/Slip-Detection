@@ -246,13 +246,14 @@ def run_all_measures_detection_count(all_runs=True):
           for list, elem in zip([errors, counts, med_vels], [err, count, med_vel]):
                list.append(elem)
 
-     fig = plt.figure()
-     ax0 = plt.subplot2grid((len(file_labels), 4), (0, 0), rowspan=len(file_labels), colspan=2)
+     scale = 5
+     fig = plt.figure(figsize=(8*scale, 0.8*scale))
+     ax0 = plt.subplot2grid((len(file_labels), 9), (0, 0), rowspan=len(file_labels), colspan=3)
      middle_axs = []
      right_axs = []
      for i in range(len(file_labels)):
-          middle_axs.append(plt.subplot2grid((len(file_labels), 4), (i, 2)))
-          right_axs.append(plt.subplot2grid((len(file_labels), 4), (i, 3)))
+          middle_axs.append(plt.subplot2grid((len(file_labels), 9), (i, 3), colspan=3))
+          right_axs.append(plt.subplot2grid((len(file_labels), 9), (i, 6), colspan=3))
      
      for count, label, color in zip(counts, data_labels, colors):
           ax0.plot(eps_range, count, label=label, c=color)
@@ -275,8 +276,10 @@ def run_all_measures_detection_count(all_runs=True):
      
      for axs_list in [middle_axs, right_axs]:
           axs_list[-1].set_xlabel('t')
+          for ax in axs_list[:-1]:
+               ax.set_xticks([])
      
-     plt.subplots_adjust(wspace=0.4)
+     plt.subplots_adjust(wspace=1.5)
      plt.show()
 
 def run_all_measures_med_vel(all_runs=True):
