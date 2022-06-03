@@ -1,8 +1,9 @@
 
 import numpy as np
+import pandas as pd
 
-w2_err = np.load('w2_b0_err.npy')
-print(np.argwhere(np.isnan(w2_err)))
-print(w2_err[13515:13520])
-w2_err[np.isnan(w2_err)] = 0
-print(w2_err[13515:13520])
+from Utilities import load_data_all, times_from_labels, run_bounds
+
+for run in range(5):
+     init, final = run_bounds(run)
+     print(f'Run {run}, range ({init}, {final})')

@@ -2,38 +2,36 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import pandas as pd
-from Plotting import add_times_to_plot, filter_plot
+from Plotting import add_lettering, add_times_to_plot, filter_plot
 from Times import get_times_from_error
 
-from Utilities import load_data
+from Utilities import load_data, load_times, load_data_all, run_bounds
 from Plotting import add_subplot_axes
 
-def plot_sample_thresh(ax, eps_1, eps_2, window, data, err, data_label, add_times=True, lettering=None, colors=['green', 'orange']):
+def plot_sample_thresh(ax, epsilons, window, data, err, data_label, colors, add_times=True, lettering=None):
      
      init, final = window
-     times_1, __ = get_times_from_error(err[init:final], init, eps_1, window_size=25, burn_in=25)
-     times_2, __ = get_times_from_error(err[init:final], init, eps_2, window_size=25, burn_in=25)
-     for t in times_1: print(t)
-
+     times_list = []
+     for eps in epsilons:
+          times, __ = get_times_from_error(err[init:final], init, eps, window_size=25, burn_in=0)
+          times_list.append(times)
+     
      ax.plot(range(init, final), data[init:final], c='gray', lw=0.75)
      if add_times:
-          add_times_to_plot(ax, init, final, times_2, c=colors[1], ls='-', lw=1)
-          add_times_to_plot(ax, init, final, times_1, c=colors[0], ls='--', lw=1)
+          for times, color in zip(times_list, colors):
+               add_times_to_plot(ax, init, final, times, c=color, ls='-', lw=1)
      bottom, top = ax.get_ylim()
-     ax.set_ylim(bottom, top + 0.75 * (top - bottom))
+     ax.set_ylim(top=bottom + 1.75 * (top - bottom))
      ax.set_ylabel(data_label)
      if lettering is not None:
-          bottom, top = ax.get_ylim()
-          left, right = ax.get_xlim()
-          ax.text(left + 0.1 * (right - left), top - 0.2 * (top - bottom), lettering)
-     
+          add_lettering(ax, lettering, 0.05, 0.8)
 
-     ax_new = add_subplot_axes(ax, [0.3, 0.5, 0.6, 0.4])
+     ax_new = add_subplot_axes(ax, [0.35, 0.5, 0.55, 0.4])
      ax_new.plot(range(init, final), err[init:final], c='gray', lw=0.75)
-     ax_new.set_ylabel('NME')
+     #ax_new.set_ylabel('NME')
      if add_times:
-          add_times_to_plot(ax_new, init, final, times_2, c=colors[1], ls='-', lw=1)
-          add_times_to_plot(ax_new, init, final, times_1, c=colors[0], ls='--', lw=1)
+          for times, color in zip(times_list, colors):
+               add_times_to_plot(ax_new, init, final, times, c=color, ls='-', lw=1)
      ax_new.set_ylim(-2.5, 2.5)
 
 
@@ -136,19 +134,44 @@ def run_plot_fig_3(measure='xvelocity', data_label='$v_x$'):
           ax.set_ylabel(data_label)
      
      for ax, num in zip(axs, ['(a)', '(b)', '(c)']):
-          bottom, top = ax.get_ylim()
-          left, right = ax.get_xlim()
-          ax.text(right - 0.2 * (right - left), top - 0.3 * (top - bottom), num)
+          add_lettering(ax, num, 0.8, 0.7)
      
      axs[2].set_xlabel('t')
      plt.show()
 
+def run_test(file_label, data_label):
+
+     samples = []
+     runs = [1, 2, 3, 4]
+     for run in runs:
+          init, final = run_bounds(run)
+          shift = 100000
+          samples.append([init+shift, init+shift+1000])
+     
+     v_x = load_data_all('xvelocity')
+     data = load_data_all(file_label)
+     slip_intervals = load_times()
+
+     fig, axs = plt.subplots(len(samples), 2)
+     for j, current_data, current_label in zip([0, 1], [v_x, data], ['$v_x$', data_label]):
+          for ax, sample, num in zip(axs[:,j], samples, runs):
+               init, final = sample
+               slip_start = slip_intervals[(slip_intervals[:,0] <= final) & (slip_intervals[:,0] >= init), 0]
+               slip_stop = slip_intervals[(slip_intervals[:,1] <= final) & (slip_intervals[:,1] >= init), 1]
+               ax.plot(range(init, final), current_data[init:final], lw=0.7)
+               ax.scatter(slip_start, current_data[slip_start], c='red', s=25)
+               ax.scatter(slip_stop, current_data[slip_stop], c='green', s=25)
+               ax.set_ylabel(current_label)
+               if j == 0:
+                    add_lettering(ax, f'Run S1{num}', 0.1, 0.8)
+     
+     for j in [0, 1]:
+          axs[len(samples)-1,j].set_xlabel('t')
+     plt.show()
+
 if __name__ == '__main__':
 
+     run_test(file_label='percolate_left_right', data_label='Perc')
      #run_plot_fig_3(measure='w2_b0', data_label='W2B0')
-     plot_samples_with_err(6050, (-200, 150))
-
-
-     #plot_samples_with_err(3966, (-100, 100))
-#plot_samples_with_err(119498, (-150, 150))
-#plot_samples_with_err(13517, (-50, 50))
+     #plot_samples_with_err(6050, (-200, 150))
+     print('Done!')
