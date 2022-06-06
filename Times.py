@@ -29,6 +29,7 @@ def get_times_from_error(err, init, threshold, window_size, burn_in=100):
                regime = 'Slip'
           
           elif regime == 'Slip' and np.all(sample < threshold):
+               #slip_end_times.append(i+init-window_size)
                slip_end_times.append(i+init-window_size)
                regime = 'Stick'
      

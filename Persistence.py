@@ -1,4 +1,5 @@
 # Libraries
+from msilib.schema import Component
 import networkx as nx
 import numpy as np
 from matplotlib import pyplot as plt
@@ -463,60 +464,66 @@ def print_comparison(components, data_label, R=0, print_distinct=True):
                     print(f'({start}, {stop})')
      return overlapping_comp[0]
 
-def plot_all_scatter_vels(vel_components, w2_components):
+def plot_all_scatter_vels():
 
      Vel = load_data('xvelocity')
 
+     components_dict = get_components_all(chosen_labels=['vel', 'perc'])
+     vel_components = components_dict['vel']
+     w2_components = components_dict['perc']
+
      # Clean this up
      slip_vel_components = unique(print_comparison(vel_components, 'Velocity', print_distinct=False))
-     microslip_vel_components = not_in(vel_components, slip_vel_components)
-     slip_w2_components = unique(print_comparison(w2_components, 'W2B0', print_distinct=False))
-     nonslip_w2_components = print_overlapping(vel_components, w2_components, print_distinct=False)
-     microslip_w2_components = not_in(w2_components, nonslip_w2_components + slip_w2_components)
+     unmatched_vel_components = print_overlapping(w2_components, vel_components, print_distinct=False)
+     microslip_vel_components = not_in(vel_components, unmatched_vel_components + slip_vel_components)
+     
+     slip_w2_components = unique(print_comparison(w2_components, 'Perc', print_distinct=False))
+     unmatched_w2_components = print_overlapping(vel_components, w2_components, print_distinct=False)
+     microslip_w2_components = not_in(w2_components, unmatched_w2_components + slip_w2_components)
+     
      print_overlapping(vel_components, w2_components, min_lifespan=0.01, print_distinct=False)
      print_overlapping(vel_components, remove_by_lifespan(w2_components, 0.01), print_distinct=False)
 
-     large_vel_components = remove_by_lifespan(vel_components, 1.5)
      print(f'\nVelocity breakdown: Large-scale slips count = {len(slip_vel_components)}, Small-scale slips count = {len(microslip_vel_components)}, Total = {len(vel_components)}')
-     print(f'\nW2B0 breakdown: Large-scale slips count = {len(slip_w2_components)}, Small-scale slips count = {len(microslip_w2_components)}, Unmatched count = {len(nonslip_w2_components)}, Total = {len(w2_components)}')
+     print(f'\nPerc breakdown: Large-scale slips count = {len(slip_w2_components)}, Small-scale slips count = {len(microslip_w2_components)}, Unmatched count = {len(unmatched_w2_components)}, Total = {len(w2_components)}')
      
+     fig, ax = plt.subplots()
+     plot_max_vel(ax, Vel, slip_vel_components, plot_max_vel=True, log_scale=True, alpha=0.5, c='steelblue', label='Matched to Large Slips')
+     plot_max_vel(ax, Vel, microslip_vel_components, plot_max_vel=True, log_scale=True, alpha=0.5, c='orange', label='Matched to Perc')
+     plot_max_vel(ax, Vel, unmatched_vel_components, plot_max_vel=True, log_scale=True, alpha=0.5, c='red', label='Unmatched')
+     ax.legend()
+     plt.show()
 
-     for max_vel in [True, False]:
-          fig, ax = plt.subplots()
-          plot_max_vel(ax, Vel, vel_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5)
-          plt.show()
+     fig, ax = plt.subplots()
+     plot_max_vel(ax, Vel, slip_w2_components, plot_max_vel=True, log_scale=True, alpha=0.5, c='steelblue', label='Matched to Large Slips')
+     plot_max_vel(ax, Vel, microslip_w2_components, plot_max_vel=True, log_scale=True, alpha=0.5, c='orange', label='Matched to $v_x$')
+     plot_max_vel(ax, Vel, unmatched_w2_components, plot_max_vel=True, log_scale=True, alpha=0.25, c='red', label='Unmatched')
+     ax.legend()
+     plt.show()
 
-          fig, ax = plt.subplots()
-          plot_max_vel(ax, Vel, slip_vel_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='steelblue', label='Matched')
-          plot_max_vel(ax, Vel, microslip_vel_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='orange', label='Unmatched')
-          ax.legend()
-          plt.show()
-
-          fig, ax = plt.subplots()
-          plot_max_vel(ax, Vel, slip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='steelblue', label='Matched to Slips')
-          plot_max_vel(ax, Vel, microslip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='orange', label='Matched to Velocity Components')
-          plot_max_vel(ax, Vel, nonslip_w2_components, plot_max_vel=max_vel, log_scale=True, alpha=0.5, c='red', label='Unmatched')
-          ax.legend()
-          plt.show()
-
-def run_diagnostics():
-
-     measures = ['vel', 'w2_b0', 'w2_b1', 'perc']
-     eps_mins = [0.1, 0.4, 0.2, 0.1]
-     data_labels = ['v_x', 'W2B0', 'W2B1', 'Percolation']
-
+def get_components_all(chosen_labels=['vel', 'perc', 'w2_b0']):
+     
+     file_labels = ['vel', 'perc', 'w2_b0']
+     epsilons = [0.1, 0.1, 0.4]
+     
      component_dict = {}
-     for measure, eps, data_label in zip(measures, eps_mins, data_labels):
-          if data_label in ['v_x']:
-               err = np.load(f'{measure}_err.npy')
-               component_dict[data_label] = get_components(err, np.linspace(eps, 5, 51), R=0, verbose=True)
+     for file_label, eps in zip(file_labels, epsilons):
+          if file_label in chosen_labels:
+               err = np.load(f'{file_label}_err.npy')[0:299999]
+               component_dict[file_label] = get_components(err, np.linspace(eps, 5, 51), R=0, verbose=True)
+     
+     return component_dict
 
-     for data_label in component_dict.keys():
-          print(f'\nA posteriori diagnostics for {data_label}')
-          a_posteriori_diagnosis(component_dict[data_label], err, stick_sample_size=25, plot_results=True)
+def run_diagnostics(chosen_labels=['vel', 'perc', 'w2_b0']):
+
+     component_dict = get_components_all(chosen_labels=chosen_labels)
+     for file_label in component_dict.keys():
+          print(f'\nA posteriori diagnostics for {file_label}')
+          err = np.load(f'{file_label}_err.npy')[0:299999]
+          a_posteriori_diagnosis(component_dict[file_label], err, stick_sample_size=25, plot_results=True)
 
 if __name__ == '__main__':
-
-     run_diagnostics()
+     plot_all_scatter_vels()
+     #run_diagnostics(chosen_labels=['perc'])
 
      
