@@ -130,7 +130,7 @@ def plot_accuracy_measures(ax, measures, eps_range, data_label, partial=True, le
      ax.set_title(f'Accuracy Measures for {data_label} Detections')
 
 def plot_accuracy_measures_all(axs, measures, eps_range, data_label, color='steelblue'):
-     measure_labels = ['$t_p$ (total)', '$t_p$ (advance)', '$f_p$', 'Med. Advance Notice']
+     measure_labels = ['$r_d$', '$r_a$', '$r_f$', 'Median $t_a$']
      num = 0
      for i in [0, 1]:
           for j in [0, 1]:

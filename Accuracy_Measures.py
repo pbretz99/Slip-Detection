@@ -88,58 +88,35 @@ def print_measures(measures, eps_range, data_label):
           t_p_total, t_p_partial, f_p, adv = current_measures
           print(f'f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}, med. adv. {round(adv, 1)}, eps = {eps}')
 
-def get_detection_counts_and_med_vel(eps_range, err, verbose=False):
+def get_detection_counts(eps_range, err, verbose=False):
      v_x = load_data_all('xvelocity')
      counts = []
-     med_vels = []
      for i in range(len(eps_range)):
           if verbose: print_tracker(i, len(eps_range))
           start, __ = get_times_from_error(err, 1, eps_range[i], window_size=25)
           counts.append(len(start))
+     return np.array(counts)
+
+def get_med_vel(eps_range, err, verbose=False, alpha=0.1, return_CI=False):
+     v_x = load_data_all('xvelocity')
+     med_vels = []
+     lower, upper = [], []
+     q_l = alpha / 2
+     q_u = 1 - alpha / 2
+     for i in range(len(eps_range)):
+          if verbose: print_tracker(i, len(eps_range))
+          start, __ = get_times_from_error(err, 1, eps_range[i], window_size=25)
           if len(start) > 0:
                med_vels.append(np.median(v_x[start]))
+               for q, measure in zip([q_l, q_u], [lower, upper]):
+                    measure.append(np.quantile(v_x[start], q=q))
           else:
-               med_vels.append(0)
-     return np.array(counts), np.array(med_vels)
-
-def run_vel_accuracy(eps_vel=0.2):
-     
-     # Get results for varying epsilon
-     times_df = pd.read_csv('slip_times.csv', names=['Start', 'End'], dtype=int)
-     vel_err = np.load('vel_err.npy')
-     eps_range = np.linspace(eps_vel, 5, 51)
-     measures_vel = accuracy_measures_overlap(times_df.to_numpy(), eps_range, vel_err, verbose=True)
-     
-     # Print and display results
-     print_measures(measures_vel, eps_range, 'Velocity')
-     fig, axs = plt.subplots(1, 2)
-     plot_accuracy_measures(axs[0], measures_vel, eps_range, 'Velocity')
-     plot_advance_measures(axs[1], measures_vel, eps_range, 'Velocity', partial=False)
-     fig.tight_layout()
-     plt.show()
-
-# Change for advance notices (Vel in accuracy_measures_overlap function)
-def run_vel_and_w2_comparison(eps_vel=0.2, eps_w2=0.4):
-     
-     vel_err = np.load('vel_err.npy')
-     w2_err = np.load('w2_b0_err.npy')
-
-     # At the individual level, comparison
-     vel_start, vel_stop = get_times_from_error(vel_err, 1, eps_vel, window_size=25)
-     w2_start, w2_stop = get_times_from_error(w2_err, 1, eps_w2, window_size=25)
-     print(f'At the individual level with Velocity eps = {eps_vel} and W2B0 eps = {eps_w2} level:')
-     t_p_total, t_p_partial, f_p, adv = my_measures_overlap(pair_times(w2_start, w2_stop).tolist(), pair_times(vel_start, vel_stop).tolist())
-     print(f'  f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}, med. adv (total) {adv}')
-
-def run_W2_accuracy(eps_w2=0.4):
-
-     # Plot results for each
-     fig, axs = plt.subplots(2, 2)
-     print_and_plot_accuracy(axs, 'w2_b0', eps_w2, 'W2B0', 'steelblue')
-     for i in [0, 1]:
-          for j in [0, 1]:
-               axs[i,j].legend()
-     plt.show()
+               for measure in [med_vels, lower, upper]:
+                    measure.append(0)
+     if return_CI:
+          return np.array(med_vels), np.array(lower), np.array(upper)
+     else:
+          return np.array(med_vels)
 
 def print_and_plot_accuracy(axs, file_label, eps, data_label, color, verbose=True, all_runs=True):
 
@@ -149,7 +126,7 @@ def print_and_plot_accuracy(axs, file_label, eps, data_label, color, verbose=Tru
           err = err[0:299999]
 
      # Vary in reference to standard slips
-     eps_range = np.linspace(eps, 5, 51)
+     eps_range = np.linspace(eps, 4, 41)
      measures = accuracy_measures_overlap(times, eps_range, err, verbose=verbose)
      
      # Print results for each
@@ -172,56 +149,11 @@ def run_all_measures_accuracy(all_runs=True):
      axs[0,0].legend()
      
      add_lettering(axs[0,0], '(a)', 0.1, 0.8)
-     add_lettering(axs[0,1], '(b)', 0.8, 0.8)
-     add_lettering(axs[1,0], '(c)', 0.1, 0.8)
+     add_lettering(axs[1,0], '(b)', 0.1, 0.8)
+     add_lettering(axs[0,1], '(c)', 0.8, 0.8)
      add_lettering(axs[1,1], '(d)', 0.1, 0.1)
      
-     plt.show()
-
-def run_vel_and_w2_accuracy():
-     eps_mins = [0.1, 0.4]
-     file_labels = ['vel', 'w2_b0']
-     data_labels = ['$v_x$', 'W2B0']
-     colors = ['darkblue', 'steelblue']
-
-     fig, axs = plt.subplots(2, 2)
-     for eps, file_label, data_label, color in zip(eps_mins, file_labels, data_labels, colors):
-          print_and_plot_accuracy(axs, file_label, eps, data_label, color)
-     for i in [0, 1]:
-          for j in [0, 1]:
-               axs[i,j].legend()
-     plt.show()
-
-def run_vel_and_w2_detection_count():
-     
-     vel_err = np.load('vel_err.npy')
-     w2_err = np.load('w2_b0_err.npy')
-
-     eps_range = np.linspace(0, 5, 51)
-
-     vel_counts, __ = get_detection_counts_and_med_vel(eps_range, vel_err)
-     w2_counts, __ = get_detection_counts_and_med_vel(eps_range, w2_err)
-
-     fig = plt.figure()
-     ax0 = plt.subplot2grid((2, 2), (0, 0), rowspan=2)
-     ax1 = plt.subplot2grid((2, 2), (0, 1))
-     ax2 = plt.subplot2grid((2, 2), (1, 1))
-
-     ax0.plot(eps_range, vel_counts, label='$v_x$', c='darkblue')
-     ax0.plot(eps_range, w2_counts, label='W2B0', c='steelblue')
-     ax0.set_xlabel('$T_e$')
-     ax0.set_ylabel('Detection Count')
-     bottom, top = ax0.get_ylim()
-     left, right = ax0.get_xlim()
-     colors = ['orange', 'green']
-     for eps, color, ls in zip([0.4, 1.5], colors, ['--', '-']):
-          ax0.axvline(x=eps, c=color, ls=ls, lw=1)
-     ax0.text(right - 0.12 * (right - left), top - 0.9 * (top - bottom), '(a)')
-     ax0.legend()
-
-     plot_sample_thresh(ax1, 0.4, 1.5, (550, 1050), data=load_data('xvelocity'), err=np.load('vel_err.npy'), data_label='$v_x$', add_times=True, lettering='(b)', colors=colors)
-     plot_sample_thresh(ax2, 0.4, 1.5, (550, 1050), data=load_data('w2_b0'), err=np.load('w2_b0_err.npy'), data_label='W2B0', add_times=True, lettering='(c)', colors=colors)
-     ax2.set_xlabel('t')
+     plt.subplots_adjust(wspace=0.375)
      plt.show()
 
 def run_all_measures_detection_count(all_runs=True):
@@ -236,14 +168,13 @@ def run_all_measures_detection_count(all_runs=True):
      eps_range = np.linspace(0, 10, 101)
      errors = []
      counts = []
-     med_vels = []
      for file_label in file_labels:
           err = np.load(f'{file_label}_err.npy')
           if not all_runs:
                err = err[0:299999]
           print(f'\nRunning {file_label}')
-          count, med_vel = get_detection_counts_and_med_vel(eps_range, err, verbose=True)
-          for list, elem in zip([errors, counts, med_vels], [err, count, med_vel]):
+          count = get_detection_counts(eps_range, err, verbose=True)
+          for list, elem in zip([errors, counts], [err, count]):
                list.append(elem)
 
      scale = 5
@@ -267,10 +198,10 @@ def run_all_measures_detection_count(all_runs=True):
      ax0.legend()
 
      
-     for ax, filename, err, data_label, letter in zip(middle_axs, old_file_labels, errors, data_labels, ['(b)', '(d)', '(f)']):
+     for ax, filename, err, data_label, letter in zip(middle_axs, old_file_labels, errors, data_labels, ['(b)', '(c)', '(d)']):
           plot_sample_thresh(ax, epsilons, (960, 1050), data=load_data(filename), err=err, data_label=data_label, add_times=True, lettering=letter, colors=epsilon_colors)
      
-     for ax, filename, err, data_label, letter in zip(right_axs, old_file_labels, errors, data_labels, ['(c)', '(e)', '(g)']):
+     for ax, filename, err, data_label, letter in zip(right_axs, old_file_labels, errors, data_labels, ['(e)', '(f)', '(g)']):
           plot_sample_thresh(ax, epsilons, (575, 675), data=load_data(filename), err=err, data_label=data_label, add_times=True, lettering=letter, colors=epsilon_colors)
           ax.set_ylabel(None)
      
@@ -282,29 +213,32 @@ def run_all_measures_detection_count(all_runs=True):
      plt.subplots_adjust(wspace=1.5)
      plt.show()
 
-def run_all_measures_med_vel(all_runs=True):
+def run_all_measures_med_vel(all_runs=True, show_CI=False):
 
-     old_file_labels = ['xvelocity', 'percolate_left_right', 'w2_b0']
      file_labels = ['vel', 'perc', 'w2_b0']
      data_labels = ['$v_x$', '$f_{prl}$', 'W2B0']
      colors = ['darkblue', 'green', 'steelblue']
 
-     eps_range = np.linspace(0, 10, 101)
+     eps_range = np.linspace(0, 5, 51)
      errors = []
-     counts = []
      med_vels = []
+     lowers, uppers = [], []
      for file_label in file_labels:
           err = np.load(f'{file_label}_err.npy')
           if not all_runs:
                err = err[0:299999]
           print(f'\nRunning {file_label}')
-          count, med_vel = get_detection_counts_and_med_vel(eps_range, err, verbose=True)
-          for list, elem in zip([errors, counts, med_vels], [err, count, med_vel]):
+          med_vel, lower, upper = get_med_vel(eps_range, err, verbose=True, return_CI=True)
+          for list, elem in zip([errors, med_vels, lowers, uppers], [err, med_vel, lower, upper]):
                list.append(elem)
 
      fig, ax = plt.subplots()
-     for med_vel, label, color in zip(med_vels, data_labels, colors):
+     for med_vel, lower, upper, label, color in zip(med_vels, lowers, uppers, data_labels, colors):
           ax.plot(eps_range, med_vel, label=label, c=color)
+          if show_CI:
+               #for measure in [upper, lower]:
+               #     ax.plot(eps_range, measure, c=color, ls='--')
+               ax.fill_between(eps_range, lower, upper, facecolor=color, alpha=0.2)
      ax.set_xlabel('$T_e$')
      ax.set_ylabel('Median $v_x$ at Detection')
      ax.legend()
@@ -313,10 +247,8 @@ def run_all_measures_med_vel(all_runs=True):
 
 if __name__ == '__main__':
 
-     #run_vel_and_w2_detection_count()
-     run_all_measures_detection_count(all_runs=False)
-     #run_all_measures_med_vel(all_runs=False)
-     #run_vel_and_w2_accuracy()
-     #run_all_measures_accuracy(all_runs=False)
+     #run_all_measures_detection_count(all_runs=False)
+     #run_all_measures_med_vel(all_runs=False, show_CI=True)
+     run_all_measures_accuracy(all_runs=False)
      #run_all_measures_compare()
      #run_W2_and_other_comparison()

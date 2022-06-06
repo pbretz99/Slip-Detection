@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from Accuracy_Measures import get_times_from_error, my_measures_overlap, split_by_overlap, pair_times, get_advance_notice
 from Plotting import add_lettering, add_subplot_axes
@@ -12,7 +13,7 @@ from Utilities import load_data_all, load_times, run_bounds
 def subset_times(times, init, final):
      return times[(times[:,0] >= init) & (times[:,0] <= final),:]
 
-def run_all_measures_compare(run=0):
+def run_all_measures_compare(run=0, plot_inset=False, show_median=True):
 
      init, final = run_bounds(run)
      if run == 0:
@@ -22,7 +23,7 @@ def run_all_measures_compare(run=0):
      
      eps_mins = [0.1, 0.1, 0.4]
      file_labels = ['vel', 'perc', 'w2_b0']
-     data_labels = ['$v_x$', '$f_{prl}', 'W2B0']
+     data_labels = ['$v_x$', '$f_{prl}$', 'W2B0']
      colors = ['darkblue', 'green', 'steelblue']
 
      advance_notices = []
@@ -36,33 +37,16 @@ def run_all_measures_compare(run=0):
           print(f'{data_label} measure, f_p = {round(f_p, 4)}, t_p (total) = {round(t_p_total, 4)}, t_p (partial) = {round(t_p_partial, 4)}, med. adv. {round(adv, 1)}, eps = {eps}')
           advance_notices.append(np.array(get_advance_notice(overlap_list[0], overlap_list[1])))
      
-     fig, axs = plt.subplots(3, 1)
-     max_count = 0
-     max_inset_count = 0
-     inset_axs = []
-     for ax, vals, color, label in zip(axs, advance_notices, colors, data_labels):
-          ax.hist(vals[vals <= 80], facecolor=color, edgecolor='black', bins=30)
-          ax.set_ylabel(f'{label} count')
-          ax.set_xlim(-5, 80)
-          max_count = max(max_count, ax.get_ylim()[1])
-          ax_new = add_subplot_axes(ax, [0.5, 0.5, 0.4, 0.4])
-          ax_new.hist(vals[vals <= 20], facecolor=color, edgecolor='black', bins=10)
-          ax_new.set_xlim(0, 20)
-          max_inset_count = max(max_inset_count, ax_new.get_ylim()[1])
-          inset_axs.append(ax_new)
-          for axis in [ax, ax_new]:
-               axis.axvline(x=np.median(vals), c='black', ls='--')
+     fig, ax = plt.subplots()
+     for vals, color, label in zip(advance_notices, colors, data_labels):
+          sns.kdeplot(vals[vals <= 80], ax=ax, c=color, label=label, bw_adjust=0.5)
+          if show_median:
+               ax.axvline(x=np.median(vals), c=color, ls='--')
      
-     for ax, inset_ax in zip(axs, inset_axs):
-          ax.set_ylim(top=max_count * 1.1)
-          inset_ax.set_ylim(top=max_inset_count * 1.1)
+     ax.set_xlabel('$t_a$')
+     ax.set_ylabel('Density')
+     ax.legend()
 
-     axs[2].set_xlabel('Advance Notice')
-
-     add_lettering(axs[0], '(a)', 0.02, 0.8)
-     add_lettering(axs[1], '(b)', 0.02, 0.8)
-     add_lettering(axs[2], '(c)', 0.02, 0.8)
-     
      plt.show()
 
 def run_all_measures_compare_pairwise(run=0):
@@ -75,7 +59,7 @@ def run_all_measures_compare_pairwise(run=0):
      
      eps_mins = [0.1, 0.1, 0.4]
      file_labels = ['vel', 'perc', 'w2_b0']
-     data_labels = ['$v_x$', 'Perc', 'W2B0']
+     data_labels = ['$v_x$', '$f_{prl}$', 'W2B0']
      colors = ['darkblue', 'green', 'steelblue']
 
      detection_times_list = [times]
