@@ -97,19 +97,18 @@ def get_detection_counts(eps_range, err, verbose=False):
           counts.append(len(start))
      return np.array(counts)
 
-def get_med_vel(eps_range, err, verbose=False, alpha=0.1, return_CI=False):
+def get_med_vel(eps_range, err, verbose=False, return_CI=False):
      v_x = load_data_all('xvelocity')
      med_vels = []
      lower, upper = [], []
-     q_l = alpha / 2
-     q_u = 1 - alpha / 2
      for i in range(len(eps_range)):
           if verbose: print_tracker(i, len(eps_range))
           start, __ = get_times_from_error(err, 1, eps_range[i], window_size=25)
           if len(start) > 0:
-               med_vels.append(np.median(v_x[start]))
-               for q, measure in zip([q_l, q_u], [lower, upper]):
-                    measure.append(np.quantile(v_x[start], q=q))
+               med, sd = np.median(v_x[start]), np.std(v_x[start])
+               med_vels.append(med)
+               lower.append(max(med-sd, 0))
+               upper.append(med+sd)
           else:
                for measure in [med_vels, lower, upper]:
                     measure.append(0)
@@ -142,10 +141,11 @@ def run_all_measures_accuracy(all_runs=True):
      data_labels = ['$v_x$', '$f_{prl}$', 'W2B0']
      colors = ['darkblue', 'green', 'steelblue']
 
-     fig, axs = plt.subplots(2, 2)
+     scale = 8
+     fig, axs = plt.subplots(2, 2, figsize=(scale, scale))
      for eps, file_label, data_label, color in zip(eps_mins, file_labels, data_labels, colors):
           print(f'\nRunning {data_label}')
-          print_and_plot_accuracy(axs, file_label, eps, data_label, color, all_runs=all_runs)
+          print_and_plot_accuracy(axs, file_label, eps, data_label, color, all_runs=all_runs, verbose=False)
      axs[0,0].legend()
      
      add_lettering(axs[0,0], '(a)', 0.1, 0.8)
@@ -153,7 +153,7 @@ def run_all_measures_accuracy(all_runs=True):
      add_lettering(axs[0,1], '(c)', 0.8, 0.8)
      add_lettering(axs[1,1], '(d)', 0.1, 0.1)
      
-     plt.subplots_adjust(wspace=0.375)
+     plt.subplots_adjust(wspace=0.3)
      plt.show()
 
 def run_all_measures_detection_count(all_runs=True):
@@ -219,7 +219,7 @@ def run_all_measures_med_vel(all_runs=True, show_CI=False):
      data_labels = ['$v_x$', '$f_{prl}$', 'W2B0']
      colors = ['darkblue', 'green', 'steelblue']
 
-     eps_range = np.linspace(0, 5, 51)
+     eps_range = np.linspace(0, 4, 41)
      errors = []
      med_vels = []
      lowers, uppers = [], []
@@ -232,7 +232,7 @@ def run_all_measures_med_vel(all_runs=True, show_CI=False):
           for list, elem in zip([errors, med_vels, lowers, uppers], [err, med_vel, lower, upper]):
                list.append(elem)
 
-     fig, ax = plt.subplots()
+     fig, ax = plt.subplots(figsize=(5, 4))
      for med_vel, lower, upper, label, color in zip(med_vels, lowers, uppers, data_labels, colors):
           ax.plot(eps_range, med_vel, label=label, c=color)
           if show_CI:
@@ -241,14 +241,15 @@ def run_all_measures_med_vel(all_runs=True, show_CI=False):
                ax.fill_between(eps_range, lower, upper, facecolor=color, alpha=0.2)
      ax.set_xlabel('$T_e$')
      ax.set_ylabel('Median $v_x$ at Detection')
-     ax.legend()
+     ax.legend(loc='upper left')
 
+     plt.subplots_adjust(left=0.2, bottom=0.175)
      plt.show()
 
 if __name__ == '__main__':
 
-     run_all_measures_detection_count(all_runs=False)
-     #run_all_measures_med_vel(all_runs=False, show_CI=True)
-     #run_all_measures_accuracy(all_runs=False)
+     #run_all_measures_detection_count(all_runs=True)
+     run_all_measures_med_vel(all_runs=True, show_CI=True)
+     #run_all_measures_accuracy(all_runs=True)
      #run_all_measures_compare()
      #run_W2_and_other_comparison()

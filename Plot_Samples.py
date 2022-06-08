@@ -156,7 +156,7 @@ def run_test(file_label, data_label):
      data = load_data_all(file_label)
      slip_intervals = load_times()
 
-     fig, axs = plt.subplots(len(samples), 2)
+     fig, axs = plt.subplots(len(samples), 2, figsize=(7, 5))
      for j, current_data, current_label in zip([0, 1], [v_x, data], ['$v_x$', data_label]):
           for ax, sample, num in zip(axs[:,j], samples, runs):
                init, final = sample
@@ -170,13 +170,17 @@ def run_test(file_label, data_label):
                     add_lettering(ax, f'Run S1{num}', 0.1, 0.8)
      
      for j in [0, 1]:
-          axs[len(samples)-1,j].set_xlabel('t')
+          for i in range(len(samples)-1):
+               axs[i,j].set_xticks([])
+          axs[-1,j].set_xlabel('t')
+     
+     plt.subplots_adjust(wspace=0.4)
      plt.show()
 
 if __name__ == '__main__':
 
-     run_large_samples()
-     #run_test(file_label='percolate_left_right', data_label='Perc')
+     #run_large_samples()
+     run_test(file_label='percolate_left_right', data_label='Perc')
      #run_plot_fig_3(measure='w2_b0', data_label='W2B0')
      #plot_samples_with_err(6050, (-200, 150))
      print('Done!')
