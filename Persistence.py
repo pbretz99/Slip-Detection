@@ -1,9 +1,10 @@
 # Libraries
-from msilib.schema import Component
 import networkx as nx
 import numpy as np
 from matplotlib import pyplot as plt
 import pandas as pd
+import seaborn as sns
+
 from Diagnostics import diagnostic_stats
 
 # Local Code
@@ -330,7 +331,7 @@ def a_posteriori_diagnosis(components, err, stick_sample_size=50, interior=25, p
 
 def plot_max_vel(ax, Vel, vel_components, plot_birth=True, plot_max_vel=True, log_scale=False, **kwargs):
      
-     eps_measures, vel_measures = eps_vel_measures(Vel, vel_components)
+     eps_measures, vel_measures = eps_vel_measures(vel_components)
 
      if plot_birth:
           eps_measure = eps_measures[1]
@@ -364,7 +365,8 @@ def plot_power_law(ax, Vel, vel_components, log_scale=True, **kwargs):
      ax.set_xlabel('Slip Size')
      ax.set_ylabel(y_label)
 
-def eps_vel_measures(Vel, vel_components):
+def eps_vel_measures(vel_components):
+     Vel = load_data('xvelocity')
      vel_time_ranges = time_ranges(vel_components)
      vel_lifespans = lifespans(vel_components)
      vel_births = eps_birth(vel_components)
@@ -501,7 +503,7 @@ def plot_all_scatter_vels():
      ax.legend()
      plt.show()
 
-def get_components_all(chosen_labels=['vel', 'perc', 'w2_b0']):
+def get_components_all(chosen_labels=['vel', 'perc', 'w2_b0'], max_eps=5):
      
      file_labels = ['vel', 'perc', 'w2_b0']
      epsilons = [0.1, 0.1, 0.4]
@@ -510,9 +512,76 @@ def get_components_all(chosen_labels=['vel', 'perc', 'w2_b0']):
      for file_label, eps in zip(file_labels, epsilons):
           if file_label in chosen_labels:
                err = np.load(f'{file_label}_err.npy')[0:299999]
-               component_dict[file_label] = get_components(err, np.linspace(eps, 5, 51), R=0, verbose=True)
+               component_dict[file_label] = get_components(err, np.linspace(eps, max_eps, int(max_eps * 10) + 1), R=0, verbose=True)
      
      return component_dict
+
+def compare_eps(x_components, y_components, labels, unique=False, **kwargs):
+
+     overlapping_list, __ = split_by_overlap(x_components, y_components)
+     eps_max_list = np.array([eps_birth(components) for components in overlapping_list])
+     if unique:
+          ind1 = unique_by_max_eps_ind(overlapping_list)
+          ind2 = unique_by_max_eps_ind([overlapping_list[1], overlapping_list[0]])
+          eps_max_list = eps_max_list[:,np.intersect1d(ind1, ind2, assume_unique=True)]
+
+     scale = 6
+     fig = plt.figure(figsize=(scale, scale))
+     ax = plt.subplot2grid((3, 3), (0, 1), rowspan=2, colspan=2)
+     ax_left = plt.subplot2grid((3, 3), (0, 0), rowspan=2)
+     ax_bottom = plt.subplot2grid((3, 3), (2, 1), colspan=2)
+     x, y = eps_max_list
+
+     # Plot scatter and densities
+     ax.scatter(x, y, **kwargs)
+     sns.kdeplot(x=x, ax=ax_bottom)
+     sns.kdeplot(y=y, ax=ax_left)
+     
+     # Add diagonal line and set axis to equal
+     ax.plot(ax.get_xlim(), ax.get_ylim(), c='gray', ls='--')
+     ax.axis('equal')
+     
+     # Set density plots xlim and ylim
+     ax_left.set_ylim(ax.get_ylim())
+     ax_bottom.set_xlim(ax.get_xlim())
+     max_dens = max(ax_left.get_xlim()[1], ax_bottom.get_ylim()[1])
+     ax_left.set_xlim(right=max_dens)
+     ax_bottom.set_ylim(top=max_dens)
+
+     # Flip the y density plot
+     #ax_left.invert_xaxis()
+     
+     # Set labels
+     ax_bottom.set_xlabel(labels[0])
+     ax_left.set_ylabel(labels[1])
+
+     # Set ticks
+     ax.set_xticks([])
+     ax.set_yticks([])
+     
+     plt.show()
+
+def unique_by_max_eps_ind(overlapping_list):
+     time_ranges_array = np.array([time_ranges(components) for components in overlapping_list])
+     eps_max_list = np.array([eps_birth(components) for components in overlapping_list])
+
+     unique_indices = []
+     current_indices = []
+     for i in range(len(overlapping_list[0])-1):
+          current_indices.append(i)
+          if time_ranges_array[0,i,0] != time_ranges_array[0,i+1,0]:
+               unique_indices.append(i - (len(current_indices) - 1) + np.argmax(eps_max_list[1,np.array(current_indices)]))
+               current_indices = []
+     
+     return np.array(unique_indices)
+
+def run_eps_comparison():
+
+     component_dict = get_components_all(max_eps=15)
+
+     compare_eps(component_dict['vel'], component_dict['perc'], ['Max $T_e$ ($v_x$ detections)', 'Max $T_e$ ($f_{prl}$ detections)'], c='steelblue', s=2, alpha=0.7, unique=True)
+     compare_eps(component_dict['vel'], component_dict['w2_b0'], ['Max $T_e$ ($v_x$ detections)', 'Max $T_e$ (W2B0 detections)'], c='steelblue', s=2, alpha=0.7, unique=True)
+     compare_eps(component_dict['perc'], component_dict['w2_b0'], ['Max $T_e$ ($f_{prl}$ detections)', 'Max $T_e$ (W2B0 detections)'], c='steelblue', s=2, alpha=0.7, unique=True)
 
 def run_diagnostics(chosen_labels=['vel', 'perc', 'w2_b0']):
 
@@ -523,7 +592,9 @@ def run_diagnostics(chosen_labels=['vel', 'perc', 'w2_b0']):
           a_posteriori_diagnosis(component_dict[file_label], err, stick_sample_size=25, plot_results=True)
 
 if __name__ == '__main__':
-     plot_all_scatter_vels()
+     
+     #plot_all_scatter_vels()
+     run_eps_comparison()
      #run_diagnostics(chosen_labels=['perc'])
-
+     print('Done!')
      

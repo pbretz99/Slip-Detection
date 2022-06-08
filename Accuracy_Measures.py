@@ -35,7 +35,7 @@ def get_advance_notice(overlapping_detection, overlapping_basis):
           if slip_interval not in examined_basis:
                notices.append(slip_interval[0] - detection_interval[0])
                examined_basis.append(slip_interval)
-     return notices
+     return np.array(notices)
 
 def split_by_advance(overlapping_detection, overlapping_basis):
      advance_detection, advance_basis = [], []
@@ -247,8 +247,8 @@ def run_all_measures_med_vel(all_runs=True, show_CI=False):
 
 if __name__ == '__main__':
 
-     #run_all_measures_detection_count(all_runs=False)
+     run_all_measures_detection_count(all_runs=False)
      #run_all_measures_med_vel(all_runs=False, show_CI=True)
-     run_all_measures_accuracy(all_runs=False)
+     #run_all_measures_accuracy(all_runs=False)
      #run_all_measures_compare()
      #run_W2_and_other_comparison()

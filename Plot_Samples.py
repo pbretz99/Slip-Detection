@@ -26,9 +26,9 @@ def plot_sample_thresh(ax, epsilons, window, data, err, data_label, colors, add_
      if lettering is not None:
           add_lettering(ax, lettering, 0.05, 0.8)
 
-     ax_new = add_subplot_axes(ax, [0.35, 0.5, 0.55, 0.4])
+     ax_new = add_subplot_axes(ax, [0.4, 0.5, 0.5, 0.4])
      ax_new.plot(range(init, final), err[init:final], c='gray', lw=0.75)
-     #ax_new.set_ylabel('NME')
+     ax_new.set_ylabel('NME')
      if add_times:
           for times, color in zip(times_list, colors):
                add_times_to_plot(ax_new, init, final, times, c=color, ls='-', lw=1)
@@ -88,27 +88,31 @@ def plot_samples_with_err(t, window):
      fig.tight_layout()
      plt.show()
 
-def run_plot_fig_2():
+def run_large_samples():
      init, final = 1, 10000
      
-     v_x = load_data('xvelocity')
      x_pos = load_data('xposition')
-     y_pos = load_data('y_position')
+     v_x = load_data('xvelocity')
+     perc = load_data('percolate_left_right')
+     w2_b0 = load_data('w2_b0')
      slip_intervals = pd.read_csv('slip_times.csv', names=['Start', 'End'], dtype=int).to_numpy()[:-1]
      times = slip_intervals[slip_intervals[:,0] <= final, 0]
      
-     fig, axs = plt.subplots(3, 1)
+     fig, axs = plt.subplots(4, 1, figsize=(5, 5))
 
-     for ax, data, label in zip(axs, [x_pos, y_pos, v_x], ['x', 'y', '$v_x$']):
+     for ax, data, label in zip(axs, [x_pos, v_x, perc, w2_b0], ['x', '$v_x$', '$f_{prl}$', 'W2B0']):
           ax.plot(data[init:final], lw=0.75)
           ax.scatter(times, data[times], c='red', s=7, alpha=1)
           ax.set_ylabel(label)
      
-     for ax, num in zip(axs, ['(a)', '(b)', '(c)']):
+     for ax, num in zip(axs, ['(a)', '(b)', '(c)', '(d)']):
           bottom, top = ax.get_ylim()
           ax.text(1000, top - 0.2 * (top - bottom), num)
-          
-     axs[2].set_xlabel('t')
+     
+     for ax in axs[:-1]:
+          ax.set_xticks([])
+
+     axs[-1].set_xlabel('t')
      fig.tight_layout()
      plt.show()
 
@@ -136,7 +140,7 @@ def run_plot_fig_3(measure='xvelocity', data_label='$v_x$'):
      for ax, num in zip(axs, ['(a)', '(b)', '(c)']):
           add_lettering(ax, num, 0.8, 0.7)
      
-     axs[2].set_xlabel('t')
+     axs[-1].set_xlabel('t')
      plt.show()
 
 def run_test(file_label, data_label):
@@ -171,7 +175,8 @@ def run_test(file_label, data_label):
 
 if __name__ == '__main__':
 
-     run_test(file_label='percolate_left_right', data_label='Perc')
+     run_large_samples()
+     #run_test(file_label='percolate_left_right', data_label='Perc')
      #run_plot_fig_3(measure='w2_b0', data_label='W2B0')
      #plot_samples_with_err(6050, (-200, 150))
      print('Done!')
