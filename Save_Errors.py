@@ -17,15 +17,14 @@ def filter_and_save_err(Model, measure, save_label, verbose=True, all_runs=True)
 
 if __name__ == '__main__':
 
-     Models = {'v_x': set_up_local_discount_filter(0, omega=0.2618, df=0.7, alpha=2, beta=0.0001**2, J=3),
-               'W2B0': set_up_drift_discount_filter(0.1, omega=0.2618, df=0.8, alpha=2, beta=0.0001**2, J=4, my_EKF=True),
-               'W2B1': set_up_drift_discount_filter(0.1, omega=0.2618, df=0.75, alpha=2, beta=0.0001**2, J=4, my_EKF=True),
-               'Perc': set_up_drift_discount_filter(0.1, omega=0.2618, df=0.88, alpha=2, beta=0.0001**2, J=4),
-               'TP0': set_up_drift_discount_filter(0.1, omega=0.2618, df=0.7, alpha=2, beta=0.0001**2, J=3)}
+     Models = {'v_x': set_up_local_discount_filter(0, omega=0.2618, df=0.70, alpha=2, beta=0.0001**2, J=3),
+               'W2B0': set_up_drift_discount_filter(0.1, omega=0.2618, df=0.85, alpha=2, beta=0.0001**2, J=4, my_EKF=True),
+               'f_{plr}': set_up_drift_discount_filter(0.1, omega=0.2618, df=0.94, alpha=2, beta=0.0001**2, J=4)}
 
-     #filter_and_save_err(Models['v_x'], 'xvelocity', 'vel_err')
-     #filter_and_save_err(Models['W2B0'], 'w2_b0', 'w2_b0_err')
-     #filter_and_save_err(Models['W2B1'], 'w2_b1', 'w2_b1_err')
-     filter_and_save_err(Models['Perc'], 'percolate_left_right', 'perc_err')
+     file_labels = {'v_x': 'xvelocity', 'W2B0': 'w2_b0', 'f_{plr}': 'percolate_left_right'}
+     save_labels = {'v_x': 'vel_err', 'W2B0': 'w2_b0_err', 'f_{plr}': 'perc_err'}
+
+     for key in ['v_x', 'W2B0', 'f_{plr}']:
+          filter_and_save_err(Models[key], file_labels[key], save_labels[key])
      
      print('Done!')

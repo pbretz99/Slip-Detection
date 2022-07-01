@@ -6,6 +6,7 @@ import pandas as pd
 import seaborn as sns
 
 from Diagnostics import diagnostic_stats
+from Plotting import add_lettering
 
 # Local Code
 from Utilities import interior_intervals, load_data, print_tracker, right_intervals, unique, not_in, overlapping, extend
@@ -328,6 +329,8 @@ def a_posteriori_diagnosis(components, err, stick_sample_size=50, interior=25, p
                ax.set_ylabel('Count')
           fig.tight_layout()
           plt.show()
+     
+     return SW, LB
 
 def plot_max_vel(ax, Vel, vel_components, plot_birth=True, plot_max_vel=True, log_scale=False, **kwargs):
      
@@ -586,15 +589,37 @@ def run_eps_comparison():
 def run_diagnostics(chosen_labels=['vel', 'perc', 'w2_b0']):
 
      component_dict = get_components_all(chosen_labels=chosen_labels)
-     for file_label in component_dict.keys():
+     scale = 5
+     fig, axs = plt.subplots(3, 2, figsize=(scale, 1.5 * scale))
+     for i, file_label in zip(range(3), component_dict.keys()):
           print(f'\nA posteriori diagnostics for {file_label}')
           err = np.load(f'{file_label}_err.npy')[0:299999]
-          a_posteriori_diagnosis(component_dict[file_label], err, stick_sample_size=25, plot_results=True)
+          SW, LB = a_posteriori_diagnosis(component_dict[file_label], err, stick_sample_size=25, plot_results=False)
+          for j, results in zip(range(2), [SW, LB]):
+               axs[i,j].hist(results, bins=30, edgecolor='black', facecolor='lightblue')
+     for i in range(3):
+          axs[i,1].set_yticks([])
+          axs[i,0].set_ylabel('Count')
+     for j in range(2):
+          for i in range(2):
+               axs[i,j].set_xticks([])
+     axs[-1,0].set_xlabel('Shapiro-Wilks p-value')
+     axs[-1,1].set_xlabel('Ljung-Box p-value')
 
+     num = 0
+     letters = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)']
+     for i in range(3):
+          for j in range(2):
+               add_lettering(axs[i,j], letters[num], 0.8, 0.8)
+               num += 1
+
+     plt.savefig('a_posteriori_diagnostics.png')
+     plt.show()
+     
 if __name__ == '__main__':
      
      #plot_all_scatter_vels()
-     run_eps_comparison()
-     #run_diagnostics(chosen_labels=['perc'])
+     #run_eps_comparison()
+     run_diagnostics()
      print('Done!')
      
